@@ -17,7 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- SheetJS for Excel -->
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <!-- jsPDF for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -88,7 +88,10 @@
     <script type="text/babel">
         const { useState, useMemo, useEffect } = React;
 
-        const DEFAULT_TENANT_ID = '11111111-1111-1111-1111-111111111111';
+        // tenant_id se asigna dinámicamente al hacer login
+        // Fallback por URL para modo desarrollo: index.html?t=<uuid>
+        const _urlParams = new URLSearchParams(window.location.search);
+        let DEFAULT_TENANT_ID = _urlParams.get('t') || null;
 
         // --- Supabase Initialization ---
         const SUPABASE_URL = 'https://stsbkesnajbgzdummxzh.supabase.co';
@@ -258,7 +261,7 @@
         // --- Components ---
 
         // 1. Home View (Dashboard)
-        const HomeView = ({ loans, onOpenGasto, onOpenCobro }) => {
+        const HomeView = ({ loans, onOpenGasto, onOpenCobro, tenantName, onLogout }) => {
             const activeLoans = loans.filter(l => l.status !== 'inactive');
             const carteraTotalColocada = activeLoans.reduce((acc, loan) => acc + (loan.totalPayable || loan.amount), 0);
             const capitalPendiente = activeLoans.reduce((acc, loan) => acc + (loan.balance || 0), 0);
@@ -275,10 +278,18 @@
                             <div className="flex justify-between items-start mb-6">
                                 <div>
                                     <p className="text-gray-400 text-sm font-medium">Resumen Financiero</p>
-                                    <h1 className="text-3xl font-extrabold tracking-tight mt-1">Hola, Admin 👋</h1>
+                                    <h1 className="text-3xl font-extrabold tracking-tight mt-1">Hola, {tenantName || 'Admin'} 👋</h1>
                                 </div>
-                                <div className="w-12 h-12 bg-gray-800 text-white rounded-full flex items-center justify-center font-bold text-lg border border-gray-700 shadow-sm">
-                                    A
+                                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                                    <div className="w-10 h-10 bg-gray-800 text-white rounded-full flex items-center justify-center font-bold text-sm border border-gray-700">
+                                        {(tenantName || 'A').charAt(0).toUpperCase()}
+                                    </div>
+                                    {onLogout && (
+                                        <button onClick={onLogout}
+                                            style={{background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.3)',borderRadius:10,padding:'6px 12px',color:'#ef4444',fontSize:11,fontWeight:600,cursor:'pointer'}}>
+                                            Salir
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                             {/* Selector de Mes */}
@@ -454,6 +465,7 @@
                         let clientId;
                         const { data: existingClient } = await supabase
                             .from('clients').select('id')
+                            .eq('tenant_id', DEFAULT_TENANT_ID)
                             .eq('document_id', documentId).maybeSingle();
 
                         if (existingClient) {
@@ -614,13 +626,47 @@
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-gray-500 mb-2">Duración (Meses)</label>
-                                    <input
-                                        type="number"
-                                        value={meses}
-                                        min="1"
-                                        onChange={(e) => setMeses(Math.max(1, Number(e.target.value)))}
-                                        className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-nequi focus:border-transparent transition-all font-semibold text-gray-900"
-                                    />
+                                    <div style={{display:'flex', alignItems:'center', border:'1.5px solid #e5e7eb', borderRadius:'16px', overflow:'hidden', background:'#fff'}}>
+                                        {/* Botón Menos */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setMeses(prev => Math.max(1, prev - 1))}
+                                            style={{minWidth:'44px', minHeight:'44px', display:'flex', alignItems:'center', justifyContent:'center', background:'#fdf2f8', border:'none', borderRight:'1.5px solid #f9e0f3', cursor:'pointer', flexShrink:0, transition:'background 0.15s'}}
+                                            onMouseDown={e => e.currentTarget.style.background='#f5c6e8'}
+                                            onMouseUp={e => e.currentTarget.style.background='#fdf2f8'}
+                                            onTouchStart={e => e.currentTarget.style.background='#f5c6e8'}
+                                            onTouchEnd={e => e.currentTarget.style.background='#fdf2f8'}
+                                            aria-label="Disminuir duración"
+                                        >
+                                            <svg width="18" height="18" fill="none" stroke="#DA0081" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                        </button>
+                                        {/* Input central */}
+                                        <input
+                                            type="number"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            value={meses}
+                                            min="1"
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value, 10);
+                                                setMeses(isNaN(val) || val < 1 ? 1 : val);
+                                            }}
+                                            style={{flex:1, border:'none', outline:'none', textAlign:'center', fontSize:'20px', fontWeight:'700', color:'#111827', background:'transparent', padding:'10px 4px', minWidth:0, WebkitAppearance:'none', MozAppearance:'textfield'}}
+                                        />
+                                        {/* Botón Más */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setMeses(prev => prev + 1)}
+                                            style={{minWidth:'44px', minHeight:'44px', display:'flex', alignItems:'center', justifyContent:'center', background:'#fdf2f8', border:'none', borderLeft:'1.5px solid #f9e0f3', cursor:'pointer', flexShrink:0, transition:'background 0.15s'}}
+                                            onMouseDown={e => e.currentTarget.style.background='#f5c6e8'}
+                                            onMouseUp={e => e.currentTarget.style.background='#fdf2f8'}
+                                            onTouchStart={e => e.currentTarget.style.background='#f5c6e8'}
+                                            onTouchEnd={e => e.currentTarget.style.background='#fdf2f8'}
+                                            aria-label="Aumentar duración"
+                                        >
+                                            <svg width="18" height="18" fill="none" stroke="#DA0081" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -710,7 +756,8 @@
                                 phone_main: phone,
                                 address: address
                             })
-                            .eq('id', loan.clientId);
+                            .eq('id', loan.clientId)
+                            .eq('tenant_id', DEFAULT_TENANT_ID);
                         if (clientError) throw clientError;
                     }
 
@@ -724,7 +771,8 @@
                             installments_total: Number(total),
                             status: Number(balance) <= 0 ? 'completed' : 'active'
                         })
-                        .eq('id', loan.id);
+                        .eq('id', loan.id)
+                        .eq('tenant_id', DEFAULT_TENANT_ID);
                     
                     if (error) throw error;
                     alert('Datos actualizados exitosamente.');
@@ -810,7 +858,7 @@
 
 
         // --- Cartulina Pagos Modal ---
-        const CartulinaPagosModal = ({ isOpen, onClose, loan }) => {
+        const CartulinaPagosModal = ({ isOpen, onClose, loan, businessName }) => {
             const [payments, setPayments] = React.useState([]);
             const [loadingPayments, setLoadingPayments] = React.useState(false);
 
@@ -863,10 +911,10 @@
                 doc.setTextColor(255, 255, 255);
                 doc.setFontSize(18);
                 doc.setFont('helvetica', 'bold');
-                doc.text('GESTIÓN DE CRÉDITOS', marginX, 14);
+                doc.text(businessName || 'GESTIÓN DE CRÉDITOS', marginX, 14);
                 doc.setFontSize(10);
                 doc.setFont('helvetica', 'normal');
-                doc.text('Cartulina de Pagos — Historial del Cliente', marginX, 22);
+                doc.text('Cartulina de Pagos — Estado de Cuenta del Cliente', marginX, 22);
                 doc.text(`Generado: ${new Date().toLocaleDateString('es-CO')}`, 210 - marginX, 22, { align: 'right' });
                 y = 42;
 
@@ -1055,22 +1103,38 @@
             }, []);
 
             const exportToExcel = () => {
-                if (!window.XLSX) { alert('Libreria Excel no disponible.'); return; }
+                if (!window.XLSX) { alert('Librería Excel no disponible. Recarga la página.'); return; }
                 const data = loans.map(l => ({
                     'Cliente': l.clientName,
-                    'Monto Prestado': l.amount,
-                    'Total a Pagar': l.totalPayable,
-                    'Saldo Restante': l.balance,
+                    'Producto': l.lineName || 'General',
+                    'Capital Prestado': l.amount,
+                    'Total a Pagar': Math.round(l.totalPayable),
+                    'Saldo Restante': Math.round(l.balance),
                     'Cuotas Pagadas': l.installmentsPaid,
                     'Total Cuotas': l.totalInstallments,
+                    'Valor Cuota': Math.round(l.cuotaValue),
                     'Frecuencia': l.frequency,
                     'Fecha Inicio': l.date,
-                    'Estado': l.status === 'active' ? 'Activo' : l.status === 'late' ? 'Atrasado' : l.status === 'inactive' ? 'Inactivo' : 'Cancelado'
+                    'Estado': l.status === 'active' ? 'Activo' : l.status === 'late' ? 'Atrasado' : l.status === 'inactive' ? 'Inactivo' : l.status === 'completed' ? 'Pagado' : 'Cancelado'
                 }));
                 const ws = window.XLSX.utils.json_to_sheet(data);
+                // Anchos de columna profesionales
+                ws['!cols'] = [
+                    {wch:25}, // Cliente
+                    {wch:20}, // Producto
+                    {wch:18}, // Capital
+                    {wch:18}, // Total
+                    {wch:18}, // Saldo
+                    {wch:10}, // Pagadas
+                    {wch:10}, // Total cuotas
+                    {wch:15}, // Valor Cuota
+                    {wch:12}, // Frecuencia
+                    {wch:14}, // Fecha
+                    {wch:12}  // Estado
+                ];
                 const wb = window.XLSX.utils.book_new();
-                window.XLSX.utils.book_append_sheet(wb, ws, 'Préstamos');
-                window.XLSX.writeFile(wb, `creditos_${new Date().toISOString().split('T')[0]}.xlsx`);
+                window.XLSX.utils.book_append_sheet(wb, ws, 'Cartera de Créditos');
+                window.XLSX.writeFile(wb, `Cartera_Creditos_${new Date().toISOString().split('T')[0]}.xlsx`);
             };
 
             const exportToPDF = () => {
@@ -1176,176 +1240,91 @@
             };
 
             return (
-                <div className="p-6 pb-24 max-w-4xl mx-auto fade-in">
-                    <div className="flex justify-between items-end mb-6">
+                <div className="pb-24 fade-in" style={{maxWidth:'100%',margin:'0 auto'}}>
+                    {/* Header */}
+                    <div style={{padding:'20px 16px 0',display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:12}}>
                         <div>
-                            <h2 className="text-2xl font-bold text-gray-900">Préstamos</h2>
-                            <p className="text-sm text-gray-500 mt-1">Gestiona tu cartera</p>
+                            <h2 style={{fontSize:22,fontWeight:800,color:'#111827',margin:0}}>Préstamos</h2>
+                            <p style={{fontSize:12,color:'#9ca3af',margin:'2px 0 0'}}>Gestiona tu cartera · {sortedLoans.length} registros</p>
                         </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={exportToExcel}
-                                className="p-2.5 rounded-xl bg-green-50 text-green-600 hover:bg-green-100 transition-colors shadow-sm" title="Exportar a Excel">
-                                <IconDownload className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={exportToPDF}
-                                className="p-2.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition-colors shadow-sm" title="Exportar a PDF">
-                                <IconFileText className="w-5 h-5" />
-                            </button>
+                        <div style={{display:'flex',gap:6}}>
+                            <button onClick={exportToExcel} style={{width:38,height:38,borderRadius:10,border:'1.5px solid #d1fae5',background:'#ecfdf5',color:'#059669',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}} title="Excel"><IconDownload style={{width:18,height:18}} /></button>
+                            <button onClick={exportToPDF} style={{width:38,height:38,borderRadius:10,border:'1.5px solid #fecdd3',background:'#fff1f2',color:'#e11d48',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}} title="PDF"><IconFileText style={{width:18,height:18}} /></button>
                         </div>
                     </div>
-
                     {/* Filters */}
-                    <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-                        {['all', 'active', 'late', 'completed', 'inactive'].map(f => (
-                            <button
-                                key={f}
-                                onClick={() => setFilter(f)}
-                                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${filter === f
-                                        ? 'bg-nequi text-white shadow-md shadow-nequi/30'
-                                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                                    }`}
-                            >
-                                {f === 'all' ? 'Todos' : f === 'active' ? 'Activos' : f === 'late' ? 'Atrasados' : f === 'completed' ? 'Pagados' : 'Inactivos'}
+                    <div style={{padding:'0 16px',display:'flex',gap:6,marginBottom:14,overflowX:'auto'}}>
+                        {['all','active','late','completed','inactive'].map(f=>(
+                            <button key={f} onClick={()=>setFilter(f)} style={{padding:'6px 16px',borderRadius:20,fontSize:12,fontWeight:600,whiteSpace:'nowrap',border:filter===f?'none':'1px solid #e5e7eb',background:filter===f?'#DA0081':'#fff',color:filter===f?'#fff':'#6b7280',cursor:'pointer',boxShadow:filter===f?'0 3px 12px rgba(218,0,129,0.3)':'none'}}>
+                                {f==='all'?'Todos':f==='active'?'Activos':f==='late'?'Atrasados':f==='completed'?'Pagados':'Inactivos'}
                             </button>
                         ))}
                     </div>
-
-                    {/* Smart Table (Card layout for mobile, table for desktop) */}
-                    <div className="space-y-4 md:space-y-0 md:bg-white md:rounded-3xl md:shadow-[0_8px_30px_rgb(0,0,0,0.04)] md:border md:border-gray-100 md:overflow-hidden">
-
-                        {/* Desktop Header */}
-                        <div className="hidden md:grid grid-cols-6 gap-4 p-4 bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            <div className="col-span-2 cursor-pointer flex items-center" onClick={() => requestSort('clientName')}>
-                                Cliente {sortConfig.key === 'clientName' && (sortConfig.direction === 'asc' ? <IconChevronUp className="inline ml-1" /> : <IconChevronDown className="inline ml-1" />)}
-                            </div>
-                            <div className="cursor-pointer flex items-center" onClick={() => requestSort('amount')}>
-                                Monto {sortConfig.key === 'amount' && (sortConfig.direction === 'asc' ? <IconChevronUp className="inline ml-1" /> : <IconChevronDown className="inline ml-1" />)}
-                            </div>
-                            <div className="cursor-pointer flex items-center" onClick={() => requestSort('date')}>
-                                Fecha {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? <IconChevronUp className="inline ml-1" /> : <IconChevronDown className="inline ml-1" />)}
-                            </div>
-                            <div>Estado</div>
-                            <div className="text-right">Acción</div>
+                    {/* Scroll hint for mobile */}
+                    <div style={{padding:'0 16px 6px',display:'flex',alignItems:'center',gap:4,color:'#DA0081',fontSize:11,fontWeight:600}}>
+                        <span style={{opacity:0.6}}>👆</span> Desliza para ver todas las columnas →
+                    </div>
+                    {/* Excel Table - Scrollable Container */}
+                    <div style={{margin:'0 8px',border:'2px solid #DA0081',borderRadius:6,overflow:'hidden',background:'#fff',boxShadow:'0 4px 20px rgba(0,0,0,0.08)'}}>
+                      <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+                        {/* Header Row */}
+                        <div style={{display:'grid',gridTemplateColumns:'160px 120px 120px 80px 90px 90px 110px',minWidth:770,background:'linear-gradient(135deg,#DA0081,#c4006f)',color:'#fff',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:0.5}}>
+                            <div onClick={()=>requestSort('clientName')} style={{padding:'10px 12px',borderRight:'1px solid rgba(255,255,255,0.2)',cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>Cliente {sortConfig.key==='clientName'&&(sortConfig.direction==='asc'?'▲':'▼')}</div>
+                            <div onClick={()=>requestSort('amount')} style={{padding:'10px 8px',borderRight:'1px solid rgba(255,255,255,0.2)',cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>Capital {sortConfig.key==='amount'&&(sortConfig.direction==='asc'?'▲':'▼')}</div>
+                            <div style={{padding:'10px 8px',borderRight:'1px solid rgba(255,255,255,0.2)'}}>Saldo</div>
+                            <div style={{padding:'10px 8px',borderRight:'1px solid rgba(255,255,255,0.2)',textAlign:'center'}}>Cuotas</div>
+                            <div onClick={()=>requestSort('date')} style={{padding:'10px 8px',borderRight:'1px solid rgba(255,255,255,0.2)',cursor:'pointer'}}>Fecha {sortConfig.key==='date'&&(sortConfig.direction==='asc'?'▲':'▼')}</div>
+                            <div style={{padding:'10px 8px',borderRight:'1px solid rgba(255,255,255,0.2)',textAlign:'center'}}>Estado</div>
+                            <div style={{padding:'10px 8px',textAlign:'center'}}>Acciones</div>
                         </div>
-
-                        {/* List Items */}
-                        {sortedLoans.map(loan => {
-                            const progress = (loan.installmentsPaid / loan.totalInstallments) * 100;
+                        {/* Data Rows */}
+                        {sortedLoans.map((loan,idx)=>{
                             const addressInfo = loan.address ? ` Estaremos pasando por tu dirección en ${loan.address}${loan.reference ? ` - ${loan.reference}` : ''}.` : '';
                             const whatsappMsg = encodeURIComponent(`Hola ${loan.clientName}, te recordamos tu cuota hoy.${addressInfo}`);
                             const whatsappLink = `https://wa.me/${loan.phone}?text=${whatsappMsg}`;
-
                             return (
-                                <div key={loan.id} className="bg-white p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 md:rounded-none md:border-0 md:border-b md:border-gray-50 md:shadow-none md:grid md:grid-cols-6 md:gap-4 md:items-center hover:bg-gray-50 transition-colors relative">
-                                    {/* Botón de Tres Puntos (Esquina Superior Derecha) */}
-                                    <div className="absolute top-4 right-4 md:static md:col-start-6 md:row-start-1 md:flex md:justify-end md:ml-4">
-                                        <div className="relative inline-block text-left">
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === loan.id ? null : loan.id); }}
-                                                className="p-1 rounded-full hover:bg-gray-200 transition-colors text-gray-400"
-                                            >
-                                                <IconDotsVertical className="w-5 h-5" />
-                                            </button>
-
-                                            {/* Dropdown Menu */}
-                                            {openMenuId === loan.id && (
-                                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 z-[60] overflow-hidden slide-up-fade">
-                                                    <button
-                                                        onClick={() => onInactivateLoan(loan.id)}
-                                                        className="w-full text-left px-4 py-3 text-sm font-bold text-gray-600 hover:bg-orange-50 hover:text-orange-600 flex items-center gap-2 transition-colors"
-                                                    >
-                                                        <IconPause className="w-4 h-4" />
-                                                        Inactivar Crédito
-                                                    </button>
-                                                    <button
-                                                        onClick={() => onEditLoan(loan)}
-                                                        className="w-full text-left px-4 py-3 text-sm font-bold text-blue-600 hover:bg-blue-50 flex items-center gap-2 transition-colors"
-                                                    >
-                                                        <IconEdit className="w-4 h-4" />
-                                                        Editar Crédito
-                                                    </button>
-                                                    <button
-                                                        onClick={() => onDeleteLoan(loan.id)}
-                                                        className="w-full text-left px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                        Eliminar Crédito
-                                                    </button>
+                                <div key={loan.id} style={{display:'grid',gridTemplateColumns:'160px 120px 120px 80px 90px 90px 110px',minWidth:770,background:idx%2===0?'#fff':'#fdf2f8',borderBottom:'1px solid #f3e8ff',fontSize:13,transition:'background .15s'}} onMouseEnter={e=>e.currentTarget.style.background='#fce7f3'} onMouseLeave={e=>e.currentTarget.style.background=idx%2===0?'#fff':'#fdf2f8'}>
+                                    {/* Cliente */}
+                                    <div style={{padding:'10px 12px',borderRight:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:8,minWidth:0}}>
+                                        <div style={{width:30,height:30,borderRadius:'50%',background:'linear-gradient(135deg,#DA0081,#9333ea)',color:'#fff',fontSize:12,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{loan.clientName.charAt(0).toUpperCase()}</div>
+                                        <span style={{fontWeight:700,color:'#111827',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{loan.clientName}</span>
+                                    </div>
+                                    {/* Capital */}
+                                    <div style={{padding:'10px 8px',borderRight:'1px solid #f1f5f9',fontWeight:600,color:'#111827',display:'flex',alignItems:'center'}}>{formatCurrency(loan.amount)}</div>
+                                    {/* Saldo */}
+                                    <div style={{padding:'10px 8px',borderRight:'1px solid #f1f5f9',fontWeight:700,color:loan.balance<=0?'#059669':'#DA0081',display:'flex',alignItems:'center'}}>{formatCurrency(Math.round(loan.balance))}</div>
+                                    {/* Cuotas */}
+                                    <div style={{padding:'10px 8px',borderRight:'1px solid #f1f5f9',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontWeight:800,color:'#111827'}}>{loan.installmentsPaid}</span><span style={{color:'#d1d5db',margin:'0 2px'}}>/</span><span style={{color:'#6b7280'}}>{loan.totalInstallments}</span></div>
+                                    {/* Fecha */}
+                                    <div style={{padding:'10px 8px',borderRight:'1px solid #f1f5f9',color:'#6b7280',fontSize:12,display:'flex',alignItems:'center'}}>{new Date(loan.date).toLocaleDateString('es-CO',{day:'2-digit',month:'short'})}</div>
+                                    {/* Estado */}
+                                    <div style={{padding:'10px 8px',borderRight:'1px solid #f1f5f9',display:'flex',alignItems:'center',justifyContent:'center'}}>{getStatusBadge(loan.status)}</div>
+                                    {/* Acciones */}
+                                    <div style={{padding:'6px 4px',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
+                                        <button onClick={()=>onOpenCartulina(loan)} style={{width:28,height:28,borderRadius:6,border:'1px solid #e5e7eb',background:'#f9fafb',color:'#6b7280',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',padding:0}} title="Cartulina"><IconReceipt style={{width:14,height:14}} /></button>
+                                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{width:28,height:28,borderRadius:6,border:'1px solid #bbf7d0',background:'#dcfce7',color:'#16a34a',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',textDecoration:'none'}} title="WhatsApp"><IconWhatsApp style={{width:14,height:14}} /></a>
+                                        <div style={{position:'relative'}}>
+                                            <button onClick={e=>{e.stopPropagation();setOpenMenuId(openMenuId===loan.id?null:loan.id)}} style={{width:28,height:28,borderRadius:6,border:'1px solid #e5e7eb',background:'#f9fafb',color:'#9ca3af',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',padding:0}} title="Más"><IconDotsVertical style={{width:14,height:14}} /></button>
+                                            {openMenuId===loan.id&&(
+                                                <div style={{position:'absolute',right:0,top:32,width:190,background:'#fff',borderRadius:14,boxShadow:'0 12px 40px rgba(0,0,0,0.2)',border:'1px solid #e5e7eb',zIndex:9999,overflow:'hidden',touchAction:'none'}} onClick={e=>e.stopPropagation()}>
+                                                    <button onClick={e=>{e.stopPropagation();e.preventDefault();setOpenMenuId(null);onInactivateLoan(loan.id)}} style={{width:'100%',textAlign:'left',padding:'12px 16px',fontSize:13,fontWeight:600,color:'#6b7280',background:'#fff',border:'none',borderBottom:'1px solid #f3f4f6',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}><IconPause style={{width:15,height:15}} /> Inactivar Crédito</button>
+                                                    <button onClick={e=>{e.stopPropagation();e.preventDefault();setOpenMenuId(null);onEditLoan(loan)}} style={{width:'100%',textAlign:'left',padding:'12px 16px',fontSize:13,fontWeight:600,color:'#2563eb',background:'#fff',border:'none',borderBottom:'1px solid #f3f4f6',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}><IconEdit style={{width:15,height:15}} /> Editar Crédito</button>
+                                                    <button onClick={e=>{e.stopPropagation();e.preventDefault();setOpenMenuId(null);onDeleteLoan(loan.id)}} style={{width:'100%',textAlign:'left',padding:'12px 16px',fontSize:13,fontWeight:600,color:'#dc2626',background:'#fff',border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}><svg style={{width:15,height:15}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Eliminar Crédito</button>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-
-                                    <div className="flex justify-between items-start md:col-span-2 md:items-center">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-nequi-light text-nequi font-bold flex items-center justify-center shrink-0">
-                                                {loan.clientName.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <h3 className="font-bold text-gray-900">{loan.clientName}</h3>
-                                                <p className="text-xs text-gray-500 md:hidden mt-0.5">{new Date(loan.date).toLocaleDateString('es-CO')}</p>
-                                            </div>
-                                        </div>
-                                        <div className="md:hidden mr-8">
-                                            {getStatusBadge(loan.status)}
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-4 md:mt-0">
-                                        <p className="text-xs text-gray-400 md:hidden mb-1">Monto Prestado</p>
-                                        <p className="font-semibold text-gray-800">{formatCurrency(loan.amount)}</p>
-                                    </div>
-
-                                    <div className="hidden md:block text-sm text-gray-600">
-                                        {new Date(loan.date).toLocaleDateString('es-CO')}
-                                    </div>
-
-                                    <div className="hidden md:block">
-                                        {getStatusBadge(loan.status)}
-                                    </div>
-
-                                    <div className="mt-4 pt-4 border-t border-gray-50 flex justify-between items-center md:mt-0 md:pt-0 md:border-0 md:justify-end md:gap-6">
-                                        <div className="flex-1 mr-4 md:mr-0 md:flex-none flex flex-col md:items-end">
-                                            <p className="text-[10px] text-gray-400 font-medium mb-0.5 uppercase tracking-wide">Cuotas (Pend / Tot)</p>
-                                            <div className="text-sm flex items-baseline">
-                                                <span className="font-black text-gray-900 text-base">{loan.totalInstallments - loan.installmentsPaid}</span>
-                                                <span className="text-gray-300 mx-1">/</span>
-                                                <span className="font-medium text-gray-500">{loan.totalInstallments}</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => onOpenCartulina(loan)}
-                                                className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors active:scale-95"
-                                                title="Ver Cartulina de Pagos"
-                                            >
-                                                <IconReceipt className="w-5 h-5" />
-                                            </button>
-                                            <a
-                                                href={whatsappLink}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center justify-center w-10 h-10 rounded-full bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366] hover:text-white transition-colors active:scale-95"
-                                                title="Contactar por WhatsApp"
-                                            >
-                                                <IconWhatsApp className="w-5 h-5" />
-                                            </a>
-                                        </div>
-                                    </div>
                                 </div>
-                            )
+                            );
                         })}
-
-                        {sortedLoans.length === 0 && (
-                            <div className="p-8 text-center text-gray-500">
+                        {sortedLoans.length===0&&(
+                            <div style={{padding:'40px 20px',textAlign:'center',color:'#9ca3af',fontSize:14,background:'#fafafa'}}>
+                                <div style={{fontSize:40,marginBottom:8}}>📋</div>
                                 No hay préstamos que coincidan con el filtro.
                             </div>
                         )}
+                      </div>
                     </div>
-
                 </div>
             );
         };
@@ -1529,6 +1508,7 @@
                                 const { data: existingClient } = await supabase
                                     .from('clients')
                                     .select('id')
+                                    .eq('tenant_id', DEFAULT_TENANT_ID)
                                     .eq('document_id', String(id_num))
                                     .maybeSingle();
 
@@ -1864,7 +1844,7 @@
             const handleDeleteLine = async (lineId, lineName) => {
                 if (!confirm(`¿Eliminar la línea "${lineName}"?`)) return;
                 if (!supabase) return;
-                const { error } = await supabase.from('credit_lines').delete().eq('id', lineId);
+                const { error } = await supabase.from('credit_lines').delete().eq('id', lineId).eq('tenant_id', DEFAULT_TENANT_ID);
                 if (error) { alert('Error al eliminar: ' + error.message); return; }
                 setCreditLines(prev => prev.filter(l => l.id !== lineId));
             };
@@ -2557,12 +2537,14 @@
                         const { data: paymentsData } = await supabase
                             .from('payments')
                             .select('amount, created_at')
+                            .eq('tenant_id', DEFAULT_TENANT_ID)
                             .gte('created_at', last7DaysStr);
 
                         // Fetch Expenses (Gastos)
                         const { data: expensesData } = await supabase
                             .from('expenses')
                             .select('amount, created_at')
+                            .eq('tenant_id', DEFAULT_TENANT_ID)
                             .gte('created_at', last7DaysStr);
 
                         // Process Data
@@ -2754,6 +2736,11 @@
 
         // Main App Component
         const App = () => {
+            const [isLoggedIn, setIsLoggedIn] = useState(!!DEFAULT_TENANT_ID); // true si viene por URL
+            const [loginEmail, setLoginEmail] = useState('');
+            const [loginPassword, setLoginPassword] = useState('');
+            const [loginError, setLoginError] = useState('');
+            const [loginLoading, setLoginLoading] = useState(false);
             const [session, setSession] = useState(null);
             const [isInitializing, setIsInitializing] = useState(true);
             const [activeTab, setActiveTab] = useState('home');
@@ -2766,14 +2753,71 @@
             const [isCobroModalOpen, setIsCobroModalOpen] = useState(false);
             const [selectedLoanForCartulina, setSelectedLoanForCartulina] = useState(null);
             const [selectedLoanForEdit, setSelectedLoanForEdit] = useState(null);
+            const [licenseStatus, setLicenseStatus] = useState('checking'); // 'checking' | 'active' | 'blocked' | 'expired'
+            const [tenantInfo, setTenantInfo] = useState(null); // {business_name, owner_name}
+
+            // ── Login con email + contraseña ──────────────────────────────────
+            const handleLogin = async () => {
+                if (!loginEmail || !loginPassword) { setLoginError('Ingresa email y contraseña'); return; }
+                setLoginLoading(true);
+                setLoginError('');
+                try {
+                    const { data, error } = await supabase
+                        .from('tenants')
+                        .select('id, password, business_name, owner_name, is_blocked, license_end')
+                        .eq('email', loginEmail.trim().toLowerCase())
+                        .maybeSingle();
+                    if (error) throw error;
+                    if (!data) { setLoginError('No existe una cuenta con ese correo'); return; }
+                    if (data.password !== loginPassword) { setLoginError('Contraseña incorrecta'); return; }
+                    // Login exitoso — establecer tenant
+                    DEFAULT_TENANT_ID = data.id;
+                    setTenantInfo({ business_name: data.business_name, owner_name: data.owner_name });
+                    // Verificar licencia
+                    if (data.is_blocked) { setLicenseStatus('blocked'); setIsLoggedIn(true); return; }
+                    if (data.license_end) {
+                        const daysLeft = Math.ceil((new Date(data.license_end) - new Date()) / (1000*60*60*24));
+                        if (daysLeft <= 0) { setLicenseStatus('expired'); setIsLoggedIn(true); return; }
+                    }
+                    setLicenseStatus('active');
+                    setIsLoggedIn(true);
+                } catch(e) { setLoginError('Error de conexión: ' + e.message); }
+                finally { setLoginLoading(false); }
+            };
+
+            // ── Verificación de Licencia (para acceso por URL) ────────────────
+            const checkLicense = async () => {
+                if (!supabase || !DEFAULT_TENANT_ID) { setLicenseStatus('active'); return; }
+                try {
+                    const { data, error } = await supabase
+                        .from('tenants')
+                        .select('is_blocked, license_end, business_name, owner_name')
+                        .eq('id', DEFAULT_TENANT_ID)
+                        .maybeSingle();
+                    if (error || !data) {
+                        setLicenseStatus('active');
+                        return;
+                    }
+                    setTenantInfo({ business_name: data.business_name, owner_name: data.owner_name });
+                    if (data.is_blocked) { setLicenseStatus('blocked'); return; }
+                    if (data.license_end) {
+                        const daysLeft = Math.ceil((new Date(data.license_end) - new Date()) / (1000*60*60*24));
+                        if (daysLeft <= 0) { setLicenseStatus('expired'); return; }
+                    }
+                    setLicenseStatus('active');
+                } catch (e) {
+                    console.error('Error verificando licencia:', e);
+                    setLicenseStatus('active');
+                }
+            };
 
             useEffect(() => {
-                // Inicializar sin requerir login - cargar datos directamente
                 setIsInitializing(false);
-                if (supabase) {
+                if (supabase && isLoggedIn && DEFAULT_TENANT_ID) {
+                    checkLicense();
                     fetchData();
                 }
-            }, []);
+            }, [isLoggedIn]);
 
             useEffect(() => {
                 if (activeTab === 'home' && supabase) {
@@ -2785,7 +2829,7 @@
                 if (!supabase) { setLoans([]); return; }
                 try {
                     // Fetch Credit Lines
-                    const { data: clData, error: clError } = await supabase.from('credit_lines').select('*');
+                    const { data: clData, error: clError } = await supabase.from('credit_lines').select('*').eq('tenant_id', DEFAULT_TENANT_ID);
                     if (clData && !clError) {
                         setCreditLines(clData.map(c => ({ id: c.id, name: c.name, rate: c.interest_rate, type: c.interest_type })));
                     }
@@ -2808,6 +2852,7 @@
                                 created_at
                             )
                         `)
+                        .eq('tenant_id', DEFAULT_TENANT_ID)
                         .order('created_at', { ascending: false });
 
                     if (loansData && !loansError) {
@@ -2912,7 +2957,7 @@
                         const { error: payError } = await supabase.from('payments').delete().eq('loan_id', loanId);
                         if (payError) throw payError;
                         // 2. Eliminar el préstamo
-                        const { error: loanError } = await supabase.from('loans').delete().eq('id', loanId);
+                        const { error: loanError } = await supabase.from('loans').delete().eq('id', loanId).eq('tenant_id', DEFAULT_TENANT_ID);
                         if (loanError) throw loanError;
                         alert('Crédito eliminado exitosamente.');
                     } else {
@@ -2928,7 +2973,7 @@
                 if (!confirm('¿Deseas inactivar este crédito?')) return;
                 try {
                     if (supabase) {
-                        const { error } = await supabase.from('loans').update({ status: 'inactive' }).eq('id', loanId);
+                        const { error } = await supabase.from('loans').update({ status: 'inactive' }).eq('id', loanId).eq('tenant_id', DEFAULT_TENANT_ID);
                         if (error) throw error;
                         alert('Crédito inactivado.');
                     } else {
@@ -2961,14 +3006,98 @@
                 );
             }
 
-            // App funciona sin autenticación para facilitar las pruebas locales
-            // if (!session) { return <AuthView onSession={setSession} />; }
+            // ── Pantalla de Login ──────────────────────────────────────────────
+            if (!isLoggedIn) {
+                return (
+                    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg,#0f0f13 0%,#1a0a2e 50%,#0f0f13 100%)',padding:24,fontFamily:'Inter,sans-serif'}}>
+                        <div style={{width:'100%',maxWidth:380}}>
+                            {/* Logo / Icono */}
+                            <div style={{textAlign:'center',marginBottom:32}}>
+                                <div style={{width:72,height:72,background:'linear-gradient(135deg,#DA0081,#9333ea)',borderRadius:22,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px',fontSize:32,boxShadow:'0 8px 32px rgba(218,0,129,0.3)'}}>💰</div>
+                                <h1 style={{fontSize:24,fontWeight:800,color:'#f1f5f9',marginBottom:4}}>Gestión de Créditos</h1>
+                                <p style={{color:'#6b7280',fontSize:13}}>Ingresa con tus credenciales</p>
+                            </div>
+                            {/* Formulario */}
+                            <div style={{background:'#16161f',border:'1px solid #2a2a3a',borderRadius:24,padding:28}}>
+                                <div style={{marginBottom:16}}>
+                                    <label style={{display:'block',fontSize:11,fontWeight:600,color:'#6b7280',textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>📧 Correo Electrónico</label>
+                                    <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                                        placeholder="tu@correo.com"
+                                        style={{width:'100%',padding:'13px 16px',borderRadius:12,border:'1.5px solid #2a2a3a',background:'#0f0f13',color:'#e2e8f0',fontSize:15,outline:'none'}}
+                                    />
+                                </div>
+                                <div style={{marginBottom:20}}>
+                                    <label style={{display:'block',fontSize:11,fontWeight:600,color:'#6b7280',textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>🔑 Contraseña</label>
+                                    <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                                        placeholder="••••••••"
+                                        style={{width:'100%',padding:'13px 16px',borderRadius:12,border:'1.5px solid #2a2a3a',background:'#0f0f13',color:'#e2e8f0',fontSize:15,outline:'none',letterSpacing:2}}
+                                    />
+                                </div>
+                                {loginError && (
+                                    <div style={{background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',borderRadius:10,padding:'10px 14px',marginBottom:16}}>
+                                        <p style={{color:'#ef4444',fontSize:13,fontWeight:500}}>⚠️ {loginError}</p>
+                                    </div>
+                                )}
+                                <button onClick={handleLogin} disabled={loginLoading}
+                                    style={{width:'100%',padding:'14px',borderRadius:14,border:'none',background:'linear-gradient(135deg,#DA0081,#9333ea)',color:'#fff',fontWeight:700,fontSize:16,cursor:'pointer',boxShadow:'0 6px 24px rgba(218,0,129,0.3)',opacity:loginLoading?.7:1,transition:'opacity .2s'}}>
+                                    {loginLoading ? 'Verificando...' : 'Ingresar'}
+                                </button>
+                            </div>
+                            <p style={{textAlign:'center',color:'#4b5563',fontSize:11,marginTop:16}}>Solicita tus credenciales al administrador</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            // ── Pantalla de Licencia Vencida / Bloqueada ──────────────────────
+            if (licenseStatus === 'checking') {
+                return (
+                    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg,#0f0f13,#1a0a2e)'}}>
+                        <div style={{textAlign:'center',color:'#9ca3af'}}>
+                            <div style={{width:48,height:48,border:'3px solid #DA0081',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 1s linear infinite',margin:'0 auto 16px'}}></div>
+                            <p style={{fontFamily:'Inter,sans-serif',fontSize:14}}>Verificando licencia...</p>
+                            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (licenseStatus === 'blocked' || licenseStatus === 'expired') {
+                const whatsappMsg = encodeURIComponent('Hola, quiero activar mi licencia nuevamente del programa de organización y control de créditos');
+                const whatsappUrl = `https://wa.me/573002397590?text=${whatsappMsg}`;
+                return (
+                    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg,#0f0f13 0%,#1a0a2e 50%,#0f0f13 100%)',padding:24,fontFamily:'Inter,sans-serif'}}>
+                        <div style={{textAlign:'center',maxWidth:420,width:'100%'}}>
+                            <div style={{width:100,height:100,background:'linear-gradient(135deg,rgba(218,0,129,0.15),rgba(147,51,234,0.15))',borderRadius:30,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 28px',border:'2px solid rgba(218,0,129,0.3)'}}>
+                                <span style={{fontSize:48}}>🔒</span>
+                            </div>
+                            <h1 style={{fontSize:28,fontWeight:800,color:'#f1f5f9',marginBottom:10,lineHeight:1.2}}>
+                                {licenseStatus === 'expired' ? 'Licencia Vencida' : 'Licencia Suspendida'}
+                            </h1>
+                            <p style={{color:'#6b7280',fontSize:15,lineHeight:1.6,marginBottom:36}}>
+                                {licenseStatus === 'expired'
+                                    ? 'Tu periodo de licencia ha finalizado. Renueva ahora para seguir gestionando tus créditos sin interrupciones.'
+                                    : 'Tu acceso ha sido suspendido temporalmente. Comunícate con nosotros para reactivar tu licencia.'}
+                            </p>
+                            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
+                                style={{display:'flex',alignItems:'center',justifyContent:'center',gap:12,width:'100%',padding:'18px 24px',borderRadius:20,border:'none',background:'linear-gradient(135deg,#25D366,#128C7E)',color:'#fff',fontSize:17,fontWeight:700,textDecoration:'none',cursor:'pointer',boxShadow:'0 8px 32px rgba(37,211,102,0.3)',transition:'transform 0.15s,box-shadow 0.15s'}}
+                            >
+                                <svg width="26" height="26" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                                Contáctanos aquí para activar tu licencia
+                            </a>
+                            <p style={{color:'#4b5563',fontSize:12,marginTop:20}}>¿Necesitas ayuda? Escríbenos directamente por WhatsApp</p>
+                        </div>
+                    </div>
+                );
+            }
 
             return (
                 <div className="min-h-screen bg-surface">
                     {/* Main Content Area */}
                     <main className="transition-all duration-300">
-                        {activeTab === 'home' && <HomeView loans={loans} onOpenGasto={() => setIsGastoModalOpen(true)} onOpenCobro={() => setIsCobroModalOpen(true)} />}
+                        {activeTab === 'home' && <HomeView loans={loans} onOpenGasto={() => setIsGastoModalOpen(true)} onOpenCobro={() => setIsCobroModalOpen(true)} tenantName={tenantInfo?.business_name || tenantInfo?.owner_name} onLogout={() => { DEFAULT_TENANT_ID = null; setIsLoggedIn(false); setLicenseStatus('checking'); setTenantInfo(null); setLoans([]); setLoginEmail(''); setLoginPassword(''); }} />}
                         {activeTab === 'loans' && <LoansView loans={loans} onOpenCartulina={handleOpenCartulina} onEditLoan={handleOpenEditLoan} onDeleteLoan={handleDeleteLoan} onInactivateLoan={handleInactivateLoan} />}
                         {activeTab === 'reports' && <ReportsView />}
                         {activeTab === 'import' && <CargaMasivaView creditLines={creditLines} onSuccess={refreshDashboardData} />}
@@ -2986,7 +3115,7 @@
                     {/* Modals */}
                     <NewLoanModal isOpen={isNewLoanModalOpen} onClose={() => setIsNewLoanModalOpen(false)} creditLines={creditLines} onSuccess={refreshDashboardData} />
                     <EditLoanModal isOpen={isEditLoanModalOpen} onClose={() => setIsEditLoanModalOpen(false)} loan={selectedLoanForEdit} onSuccess={refreshDashboardData} />
-                    <CartulinaPagosModal isOpen={isCartulinaOpen} onClose={() => setIsCartulinaOpen(false)} loan={selectedLoanForCartulina} />
+                    <CartulinaPagosModal isOpen={isCartulinaOpen} onClose={() => setIsCartulinaOpen(false)} loan={selectedLoanForCartulina} businessName={tenantInfo?.business_name} />
                     <AgregarGastoModal isOpen={isGastoModalOpen} onClose={() => setIsGastoModalOpen(false)} onSuccess={refreshDashboardData} />
                     <RegistrarCobroModal isOpen={isCobroModalOpen} onClose={() => setIsCobroModalOpen(false)} loans={loans} onSuccess={refreshDashboardData} />
 
