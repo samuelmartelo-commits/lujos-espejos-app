@@ -1965,6 +1965,7 @@
             const [selectedCategory, setSelectedCategory] = useState('transporte');
             const [amount, setAmount] = useState('');
             const [description, setDescription] = useState('');
+            const [fechaGasto, setFechaGasto] = useState(new Date().toISOString().split('T')[0]);
             const [isLoading, setIsLoading] = useState(false);
 
             // Reset al abrir
@@ -1973,15 +1974,13 @@
                     setSelectedCategory('transporte');
                     setAmount('');
                     setDescription('');
+                    setFechaGasto(new Date().toISOString().split('T')[0]);
                 }
             }, [isOpen]);
 
             const handleSaveExpense = async () => {
-                if (!amount) {
-                    alert('Ingresa el valor del gasto.');
-                    return;
-                }
-
+                if (!amount) { alert('Ingresa el valor del gasto.'); return; }
+                if (!fechaGasto) { alert('Selecciona la fecha del gasto.'); return; }
                 setIsLoading(true);
                 try {
                     if (supabase) {
@@ -1991,20 +1990,19 @@
                                 tenant_id: DEFAULT_TENANT_ID,
                                 category: selectedCategory,
                                 amount: Number(amount),
-                                description: description || null
+                                description: description || null,
+                                fecha_gasto: fechaGasto
                             });
-
                         if (error) throw error;
-                        alert('Gasto guardado en Supabase.');
+                        alert('✅ Gasto guardado exitosamente.');
                     } else {
                         alert('Modo Local: Gasto simulado.');
                     }
-
                     if (onSuccess) onSuccess();
                     onClose();
                 } catch (error) {
                     console.error('Error guardando gasto:', error);
-                    alert('Error al guardar gasto: ' + (error.message || error.details || 'Error desconocido'));
+                    alert('Error al guardar gasto: ' + (error.message || 'Error desconocido'));
                 } finally {
                     setIsLoading(false);
                 }
@@ -2022,7 +2020,20 @@
                                 <IconClose className="w-5 h-5" />
                             </button>
                         </div>
-                        <div className="p-6 overflow-y-auto space-y-6">
+                        <div className="p-6 overflow-y-auto space-y-5">
+                            {/* Fecha del Gasto */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">📅 Fecha del Gasto <span className="text-red-500">*</span></label>
+                                <input
+                                    type="date"
+                                    value={fechaGasto}
+                                    onChange={e => setFechaGasto(e.target.value)}
+                                    max={new Date().toISOString().split('T')[0]}
+                                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl py-3.5 px-4 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-nequi focus:border-nequi outline-none transition-all"
+                                    style={{colorScheme:'light', minHeight:48}}
+                                />
+                                <p className="text-[10px] text-gray-400 mt-1">Puedes registrar gastos de días anteriores</p>
+                            </div>
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">Valor</label>
                                 <div className="relative">
@@ -2036,15 +2047,13 @@
                                     {categories.map(cat => {
                                         const isSelected = selectedCategory === cat.id;
                                         return (
-                                            <button
-                                                key={cat.id}
-                                                onClick={() => setSelectedCategory(cat.id)}
+                                            <button key={cat.id} onClick={() => setSelectedCategory(cat.id)}
                                                 className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border transition-all ${isSelected ? 'border-nequi bg-nequi-light/20 text-nequi' : 'border-gray-100 bg-white text-gray-500 hover:bg-gray-50'}`}
                                             >
                                                 <cat.icon className="w-6 h-6" />
                                                 <span className="text-[10px] font-bold">{cat.name}</span>
                                             </button>
-                                        )
+                                        );
                                     })}
                                 </div>
                             </div>
@@ -2054,9 +2063,7 @@
                             </div>
                         </div>
                         <div className="p-6 border-t border-gray-50 bg-white sticky bottom-0 z-20">
-                            <button
-                                onClick={handleSaveExpense}
-                                disabled={isLoading}
+                            <button onClick={handleSaveExpense} disabled={isLoading}
                                 className="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? 'Guardando...' : 'Guardar Gasto'}
@@ -2073,6 +2080,7 @@
             const [selectedLoanId, setSelectedLoanId] = useState('');
             const [amount, setAmount] = useState('');
             const [receiptFile, setReceiptFile] = useState(null);
+            const [fechaCobro, setFechaCobro] = useState(new Date().toISOString().split('T')[0]);
             const [isLoading, setIsLoading] = useState(false);
 
             // Reset al abrir
@@ -2083,6 +2091,7 @@
                     setSelectedLoanId('');
                     setAmount('');
                     setReceiptFile(null);
+                    setFechaCobro(new Date().toISOString().split('T')[0]);
                 }
             }, [isOpen]);
 
@@ -2118,14 +2127,19 @@
                     const nuevoStatus = nuevoBalance <= 0.01 ? 'completed' : 'active';
 
                     if (supabase) {
-                        // 1. Insertar el pago
+                        // 1. Insertar el pago con fecha personalizada
+                        const paymentData = {
+                            tenant_id: DEFAULT_TENANT_ID,
+                            loan_id: selectedLoanId,
+                            amount: amountNum
+                        };
+                        // Usar fecha personalizada si es diferente a hoy
+                        if (fechaCobro) {
+                            paymentData.created_at = new Date(fechaCobro + 'T12:00:00').toISOString();
+                        }
                         const { error: paymentError } = await supabase
                             .from('payments')
-                            .insert({
-                                tenant_id: DEFAULT_TENANT_ID,
-                                loan_id: selectedLoanId,
-                                amount: amountNum
-                            });
+                            .insert(paymentData);
                         if (paymentError) throw paymentError;
 
                         // 2. Actualizar el préstamo con nuevo balance e installments_paid
@@ -2180,7 +2194,20 @@
                         </div>
 
                         {/* Formulario Fluido */}
-                        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                        <div className="p-6 overflow-y-auto flex-1 space-y-5">
+                            {/* Fecha del Cobro */}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">📅 Fecha del Cobro</label>
+                                <input
+                                    type="date"
+                                    value={fechaCobro}
+                                    onChange={e => setFechaCobro(e.target.value)}
+                                    max={new Date().toISOString().split('T')[0]}
+                                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl py-3 px-4 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-nequi focus:border-nequi outline-none transition-all"
+                                    style={{colorScheme:'light', minHeight:46}}
+                                />
+                                <p className="text-[10px] text-gray-400 mt-1">Permite registrar cobros retroactivos</p>
+                            </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">1. Cliente a Pagar</label>
                                 <select
@@ -2511,201 +2538,193 @@
             );
         };
 
-        // --- Reports View ---
+        // --- Reports View (Reporte de Gastos) ---
         const ReportsView = () => {
             const [isCerrarModalOpen, setIsCerrarModalOpen] = useState(false);
+            const [expenses, setExpenses] = useState([]);
             const [recaudoHoy, setRecaudoHoy] = useState(0);
             const [gastosHoy, setGastosHoy] = useState(0);
             const [isLoaded, setIsLoaded] = useState(false);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [periodoFiltro, setPeriodoFiltro] = useState('7'); // días
+            const [isLoadingExpenses, setIsLoadingExpenses] = useState(false);
 
-            useEffect(() => {
-                const fetchReportData = async () => {
-                    if (!supabase) {
-                        // Mock Data
-                        setRecaudoHoy(150000);
-                        setGastosHoy(20000);
-                        renderChart([10, 20, 30, 40, 50, 60, 150000], [5, 10, 5, 20, 10, 5, 20000], ['L', 'M', 'M', 'J', 'V', 'S', 'D']);
-                        setIsLoaded(true);
-                        return;
+            const fetchExpensesData = async () => {
+                setIsLoadingExpenses(true);
+                if (!supabase) {
+                    setRecaudoHoy(150000); setGastosHoy(20000); setIsLoaded(true);
+                    setIsLoadingExpenses(false); return;
+                }
+                try {
+                    const dias = Number(periodoFiltro);
+                    const desde = new Date(Date.now() - dias * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    const todayStr = new Date().toISOString().split('T')[0];
+
+                    // Gastos del período
+                    const { data: expData } = await supabase
+                        .from('expenses')
+                        .select('*')
+                        .eq('tenant_id', DEFAULT_TENANT_ID)
+                        .gte('fecha_gasto', desde)
+                        .order('fecha_gasto', { ascending: false });
+
+                    // Pagos del período para recaudo
+                    const { data: paymentsData } = await supabase
+                        .from('payments')
+                        .select('amount, created_at')
+                        .eq('tenant_id', DEFAULT_TENANT_ID)
+                        .gte('created_at', desde);
+
+                    let rHoy = 0, gHoy = 0;
+                    if (paymentsData) {
+                        paymentsData.forEach(p => {
+                            if (p.created_at?.startsWith(todayStr)) rHoy += Number(p.amount);
+                        });
                     }
-
-                    try {
-                        const todayStr = new Date().toISOString().split('T')[0];
-                        const last7DaysStr = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-                        // Fetch Payments (Recaudo)
-                        const { data: paymentsData } = await supabase
-                            .from('payments')
-                            .select('amount, created_at')
-                            .eq('tenant_id', DEFAULT_TENANT_ID)
-                            .gte('created_at', last7DaysStr);
-
-                        // Fetch Expenses (Gastos)
-                        const { data: expensesData } = await supabase
-                            .from('expenses')
-                            .select('amount, created_at')
-                            .eq('tenant_id', DEFAULT_TENANT_ID)
-                            .gte('created_at', last7DaysStr);
-
-                        // Process Data
-                        let rHoy = 0;
-                        let gHoy = 0;
-
-                        // Arrays for chart (last 7 days)
-                        const labels = [];
-                        const dataRecaudo = [0, 0, 0, 0, 0, 0, 0];
-                        const dataGastos = [0, 0, 0, 0, 0, 0, 0];
-
-                        for (let i = 6; i >= 0; i--) {
-                            const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
-                            labels.push(d.toLocaleDateString('es-CO', { weekday: 'short' }));
-                        }
-
-                        if (paymentsData) {
-                            paymentsData.forEach(p => {
-                                const pDate = new Date(p.created_at);
-                                const pDateStr = pDate.toISOString().split('T')[0];
-                                if (pDateStr === todayStr) rHoy += Number(p.amount);
-
-                                const dayDiff = Math.floor((new Date() - pDate) / (1000 * 60 * 60 * 24));
-                                if (dayDiff >= 0 && dayDiff < 7) {
-                                    dataRecaudo[6 - dayDiff] += Number(p.amount);
-                                }
-                            });
-                        }
-
-                        if (expensesData) {
-                            expensesData.forEach(e => {
-                                const eDate = new Date(e.created_at);
-                                const eDateStr = eDate.toISOString().split('T')[0];
-                                if (eDateStr === todayStr) gHoy += Number(e.amount);
-
-                                const dayDiff = Math.floor((new Date() - eDate) / (1000 * 60 * 60 * 24));
-                                if (dayDiff >= 0 && dayDiff < 7) {
-                                    dataGastos[6 - dayDiff] += Number(e.amount);
-                                }
-                            });
-                        }
-
-                        setRecaudoHoy(rHoy);
-                        setGastosHoy(gHoy);
-                        renderChart(dataRecaudo, dataGastos, labels);
-                        setIsLoaded(true);
-
-                    } catch (err) {
-                        console.error('Error fetching reports:', err);
+                    if (expData) {
+                        expData.forEach(e => {
+                            if ((e.fecha_gasto || e.created_at?.split('T')[0]) === todayStr) gHoy += Number(e.amount);
+                        });
+                        setExpenses(expData);
                     }
-                };
+                    setRecaudoHoy(rHoy);
+                    setGastosHoy(gHoy);
 
-                fetchReportData();
-            }, []);
+                    // Render chart with expense data grouped by day
+                    const labels = [];
+                    const dataGastos = Array(dias).fill(0);
+                    for (let i = dias - 1; i >= 0; i--) {
+                        const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+                        labels.push(d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }));
+                    }
+                    if (expData) {
+                        expData.forEach(e => {
+                            const fechaExp = e.fecha_gasto || e.created_at?.split('T')[0];
+                            if (!fechaExp) return;
+                            const diff = Math.floor((new Date() - new Date(fechaExp)) / (1000*60*60*24));
+                            if (diff >= 0 && diff < dias) dataGastos[dias - 1 - diff] += Number(e.amount);
+                        });
+                    }
+                    renderChart(dataGastos, labels);
+                    setIsLoaded(true);
+                } catch(err) { console.error('Error fetching reports:', err); }
+                finally { setIsLoadingExpenses(false); }
+            };
 
-            const renderChart = (recaudo, gastos, labels) => {
+            useEffect(() => { fetchExpensesData(); }, [periodoFiltro]);
+
+            const renderChart = (gastos, labels) => {
                 const ctx = document.getElementById('reportsChart');
                 if (!ctx) return;
-
-                // Destroy previous instance if exists
-                if (window.reportsChartInstance) {
-                    window.reportsChartInstance.destroy();
-                }
-
+                if (window.reportsChartInstance) window.reportsChartInstance.destroy();
                 window.reportsChartInstance = new Chart(ctx, {
                     type: 'bar',
                     data: {
-                        labels: labels,
-                        datasets: [
-                            {
-                                label: 'Recaudo',
-                                data: recaudo,
-                                backgroundColor: '#DA0081',
-                                borderRadius: 6,
-                                barPercentage: 0.6
+                        labels,
+                        datasets: [{
+                            label: 'Gastos por Día',
+                            data: gastos,
+                            backgroundColor: (ctx) => {
+                                const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
+                                g.addColorStop(0, '#DA0081');
+                                g.addColorStop(1, 'rgba(218,0,129,0.3)');
+                                return g;
                             },
-                            {
-                                label: 'Gastos',
-                                data: gastos,
-                                backgroundColor: '#64748b',
-                                borderRadius: 6,
-                                barPercentage: 0.6
-                            }
-                        ]
+                            borderRadius: 8,
+                            barPercentage: 0.65
+                        }]
                     },
                     options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: {
-                            mode: 'index',
-                            intersect: false,
-                        },
+                        responsive: true, maintainAspectRatio: false,
                         plugins: {
-                            legend: {
-                                display: false
-                            },
+                            legend: { display: false },
                             tooltip: {
-                                backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                                titleFont: { size: 13, family: 'Inter' },
-                                bodyFont: { size: 13, family: 'Inter' },
-                                padding: 12,
-                                cornerRadius: 8,
+                                backgroundColor: 'rgba(17,24,39,0.95)',
+                                titleFont: { size: 11, family: 'Inter' },
+                                bodyFont: { size: 12, family: 'Inter' },
+                                padding: 10, cornerRadius: 8,
                                 callbacks: {
-                                    label: function (context) {
-                                        let label = context.dataset.label || '';
-                                        if (label) {
-                                            label += ': ';
-                                        }
-                                        if (context.parsed.y !== null) {
-                                            label += new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(context.parsed.y);
-                                        }
-                                        return label;
-                                    }
+                                    label: ctx => formatCurrency(ctx.parsed.y)
                                 }
                             }
                         },
                         scales: {
-                            y: {
-                                display: false,
-                                beginAtZero: true
-                            },
+                            y: { display: false, beginAtZero: true },
                             x: {
-                                grid: { display: false, drawBorder: false },
-                                ticks: { font: { family: 'Inter', size: 11 }, color: '#94a3b8' }
+                                grid: { display: false },
+                                ticks: { font: { family: 'Inter', size: 10 }, color: '#94a3b8', maxRotation: 45 }
                             }
                         }
                     }
                 });
             };
 
+            const exportExpensesExcel = () => {
+                if (!window.XLSX) { alert('Librería Excel no disponible.'); return; }
+                const data = filteredExpenses.map(e => ({
+                    'Fecha': e.fecha_gasto || e.created_at?.split('T')[0] || '',
+                    'Valor': Number(e.amount),
+                    'Categoría': e.category || '',
+                    'Descripción': e.description || ''
+                }));
+                const ws = window.XLSX.utils.json_to_sheet(data);
+                ws['!cols'] = [{wch:14},{wch:16},{wch:18},{wch:35}];
+                const wb = window.XLSX.utils.book_new();
+                window.XLSX.utils.book_append_sheet(wb, ws, 'Gastos');
+                window.XLSX.writeFile(wb, `Reporte_Gastos_${periodoFiltro}dias_${new Date().toISOString().split('T')[0]}.xlsx`);
+            };
+
+            const catColors = { transporte:'bg-blue-100 text-blue-700', alimentacion:'bg-orange-100 text-orange-700', comunicaciones:'bg-purple-100 text-purple-700', otros:'bg-gray-100 text-gray-600' };
+            const catLabels = { transporte:'🚗 Transporte', alimentacion:'☕ Comida', comunicaciones:'📱 Datos', otros:'➕ Otros' };
+
+            const filteredExpenses = expenses.filter(e =>
+                !searchTerm ||
+                (e.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (e.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (e.fecha_gasto || '').includes(searchTerm)
+            );
+
+            const totalGastosPeriodo = filteredExpenses.reduce((s, e) => s + Number(e.amount), 0);
+
             return (
                 <div className="pb-24 fade-in">
                     <div className="bg-gray-900 px-6 pt-8 pb-20 text-white relative z-0">
-                        <h2 className="text-2xl font-bold mb-1">Reportes y Caja</h2>
-                        <p className="text-gray-400 text-sm">Resumen de operaciones</p>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h2 className="text-2xl font-bold mb-1">Reporte de Gastos</h2>
+                                <p className="text-gray-400 text-sm">Evolución de Caja</p>
+                            </div>
+                            <div className="flex gap-2">
+                                {['7','14','30'].map(d => (
+                                    <button key={d} onClick={() => setPeriodoFiltro(d)}
+                                        style={{padding:'6px 12px',borderRadius:20,fontSize:11,fontWeight:700,border:'none',background:periodoFiltro===d?'#DA0081':'rgba(255,255,255,0.1)',color:'#fff',cursor:'pointer'}}
+                                    >{d}d</button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="max-w-md mx-auto px-6 -mt-12 space-y-4 relative z-10">
-
-                        <div className="bg-white rounded-3xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-gray-50 flex flex-col gap-1">
-                            <p className="text-sm font-medium text-gray-500">Saldo Neto Hoy</p>
-                            <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">{formatCurrency(recaudoHoy - gastosHoy)}</h2>
-
+                    <div className="max-w-md mx-auto px-4 -mt-12 space-y-4 relative z-10">
+                        {/* Tarjeta Resumen */}
+                        <div className="bg-white rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-gray-50">
+                            <p className="text-sm font-medium text-gray-500 mb-1">Total Gastos ({periodoFiltro} días)</p>
+                            <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">{formatCurrency(totalGastosPeriodo)}</h2>
                             <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-50">
                                 <div>
-                                    <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-nequi"></span> Recaudado</p>
+                                    <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-nequi"></span> Recaudo Hoy</p>
                                     <p className="font-bold text-gray-900 text-sm">{formatCurrency(recaudoHoy)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-500"></span> Gastos</p>
+                                    <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-500"></span> Gastos Hoy</p>
                                     <p className="font-bold text-gray-900 text-sm">{formatCurrency(gastosHoy)}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-3xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50">
-                            <h3 className="font-bold text-gray-900 mb-6 flex justify-between items-center">
-                                Últimos 7 días
-                                <span className="text-xs font-normal bg-gray-100 text-gray-600 px-2 py-1 rounded-md">COP</span>
-                            </h3>
-                            <div className="h-48 w-full relative">
+                        {/* Gráfico de Barras */}
+                        <div className="bg-white rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50">
+                            <h3 className="font-bold text-gray-900 mb-4 text-sm">Gastos por Día</h3>
+                            <div className="h-44 w-full relative">
                                 {!isLoaded && (
                                     <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
                                         <div className="w-8 h-8 border-2 border-nequi border-t-transparent rounded-full animate-spin"></div>
@@ -2715,9 +2734,68 @@
                             </div>
                         </div>
 
+                        {/* Tabla Detalle Excel-Style */}
+                        <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 overflow-hidden">
+                            <div className="p-4 border-b border-gray-50 flex justify-between items-center gap-3">
+                                <div className="flex-1 relative">
+                                    <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar gastos..."
+                                        value={searchTerm}
+                                        onChange={e => setSearchTerm(e.target.value)}
+                                        className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 rounded-xl border-0 focus:ring-2 focus:ring-nequi outline-none"
+                                    />
+                                </div>
+                                <button onClick={exportExpensesExcel}
+                                    className="flex items-center gap-1.5 bg-green-600 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-green-700 active:scale-95 transition-all whitespace-nowrap"
+                                >
+                                    <IconDownload className="w-3.5 h-3.5" /> Excel
+                                </button>
+                            </div>
+
+                            {/* Header Table */}
+                            <div style={{display:'grid',gridTemplateColumns:'100px 100px 90px 1fr',background:'linear-gradient(135deg,#DA0081,#c4006f)',color:'#fff',fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:0.5}}>
+                                <div style={{padding:'8px 12px'}}>Fecha</div>
+                                <div style={{padding:'8px 8px'}}>Valor</div>
+                                <div style={{padding:'8px 8px'}}>Categoría</div>
+                                <div style={{padding:'8px 8px'}}>Descripción</div>
+                            </div>
+
+                            <div style={{maxHeight:320,overflowY:'auto'}}>
+                                {isLoadingExpenses ? (
+                                    <div style={{padding:'30px',textAlign:'center',color:'#9ca3af',fontSize:13}}>Cargando gastos...</div>
+                                ) : filteredExpenses.length === 0 ? (
+                                    <div style={{padding:'30px',textAlign:'center',color:'#9ca3af',fontSize:13}}>
+                                        <div style={{fontSize:32,marginBottom:8}}>💸</div>
+                                        No hay gastos en este período.
+                                    </div>
+                                ) : filteredExpenses.map((e, idx) => (
+                                    <div key={e.id || idx} style={{display:'grid',gridTemplateColumns:'100px 100px 90px 1fr',background:idx%2===0?'#fff':'#fdf2f8',borderBottom:'1px solid #f3e8ff',fontSize:12,alignItems:'center'}}>
+                                        <div style={{padding:'9px 12px',color:'#4b5563',fontWeight:500}}>{e.fecha_gasto || e.created_at?.split('T')[0] || '-'}</div>
+                                        <div style={{padding:'9px 8px',fontWeight:700,color:'#DA0081'}}>{formatCurrency(e.amount)}</div>
+                                        <div style={{padding:'9px 8px'}}>
+                                            <span style={{fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:20,background:'#fce7f3',color:'#DA0081',textTransform:'uppercase'}}>
+                                                {catLabels[e.category] || e.category}
+                                            </span>
+                                        </div>
+                                        <div style={{padding:'9px 8px',color:'#6b7280',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{e.description || '—'}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {filteredExpenses.length > 0 && (
+                                <div style={{padding:'10px 12px',background:'#f8fafc',borderTop:'2px solid #DA0081',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                                    <span style={{fontSize:11,color:'#6b7280',fontWeight:600}}>{filteredExpenses.length} registros</span>
+                                    <span style={{fontSize:13,fontWeight:900,color:'#DA0081'}}>{formatCurrency(totalGastosPeriodo)}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Cierre de Caja */}
                         <button
                             onClick={() => setIsCerrarModalOpen(true)}
-                            className="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] active:scale-[0.98] transition-all flex justify-center items-center gap-2 mt-6"
+                            className="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] active:scale-[0.98] transition-all flex justify-center items-center gap-2"
                         >
                             <IconArchive className="w-5 h-5" />
                             Cerrar Caja
@@ -3149,7 +3227,7 @@
                                 <div className={`transition-transform duration-300 ${activeTab === 'reports' ? '-translate-y-1' : ''}`}>
                                     <IconPieChart className="w-6 h-6" />
                                 </div>
-                                <span className={`text-[10px] font-medium mt-1 transition-opacity duration-300 ${activeTab === 'reports' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>Caja</span>
+                                <span className={`text-[10px] font-medium mt-1 transition-opacity duration-300 ${activeTab === 'reports' ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>Gastos</span>
                             </button>
 
                             <button
