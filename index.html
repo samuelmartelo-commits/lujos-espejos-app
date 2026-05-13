@@ -280,13 +280,13 @@
                                     <p className="text-gray-400 text-sm font-medium">Resumen Financiero</p>
                                     <h1 className="text-3xl font-extrabold tracking-tight mt-1">Hola, {tenantName || 'Admin'} 👋</h1>
                                 </div>
-                                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <div className="w-10 h-10 bg-gray-800 text-white rounded-full flex items-center justify-center font-bold text-sm border border-gray-700">
                                         {(tenantName || 'A').charAt(0).toUpperCase()}
                                     </div>
                                     {onLogout && (
                                         <button onClick={onLogout}
-                                            style={{background:'rgba(239,68,68,0.15)',border:'1px solid rgba(239,68,68,0.3)',borderRadius:10,padding:'6px 12px',color:'#ef4444',fontSize:11,fontWeight:600,cursor:'pointer'}}>
+                                            style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '6px 12px', color: '#ef4444', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
                                             Salir
                                         </button>
                                     )}
@@ -393,6 +393,7 @@
             const [clientName, setClientName] = useState('');
             const [documentId, setDocumentId] = useState('');
             const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+            const [nextPaymentDate, setNextPaymentDate] = useState('');
             const [phoneMain, setPhoneMain] = useState('');
             const [phoneBackup, setPhoneBackup] = useState('');
             const [address, setAddress] = useState('');
@@ -411,6 +412,7 @@
                     setClientName('');
                     setDocumentId('');
                     setStartDate(new Date().toISOString().split('T')[0]);
+                    setNextPaymentDate('');
                     setPhoneMain('');
                     setPhoneBackup('');
                     setAddress('');
@@ -487,9 +489,7 @@
                             clientId = newClient.id;
                         }
 
-                        const { error: loanError } = await supabase
-                            .from('loans')
-                            .insert({
+                        const loanInsert = {
                                 tenant_id: DEFAULT_TENANT_ID,
                                 client_id: clientId,
                                 amount: Number(monto),
@@ -502,7 +502,14 @@
                                 balance: Math.round(montoFinal),
                                 start_date: startDate,
                                 status: 'active'
-                            });
+                            };
+                        // Agregar fecha pactada de cobro si se proporcionó
+                        if (nextPaymentDate) {
+                            loanInsert.next_payment_date = nextPaymentDate;
+                        }
+                        const { error: loanError } = await supabase
+                            .from('loans')
+                            .insert(loanInsert);
                         if (loanError) throw loanError;
                         alert(`✅ Crédito creado!\n💰 Capital: ${formatCurrency(monto)}\n📈 Interés: ${formatCurrency(totalIntereses)}\n💳 Total: ${formatCurrency(montoFinal)}\n📋 Cuota: ${formatCurrency(valorCuota)} × ${totalCuotas}`);
                     } else {
@@ -547,6 +554,12 @@
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Inicio</label>
                                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-nequi focus:border-transparent transition-all font-semibold text-gray-900" />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">📅 Fecha Pactada de Cobro <span className="text-xs text-gray-400 font-normal">(Opcional)</span></label>
+                                <input type="date" value={nextPaymentDate} onChange={e => setNextPaymentDate(e.target.value)} className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-nequi focus:border-transparent transition-all font-semibold text-gray-900" />
+                                <p className="text-[10px] text-gray-400 mt-1">Fecha en que se le debe cobrar al cliente. Si no se define, se calculará automáticamente según la frecuencia.</p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -626,19 +639,19 @@
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-gray-500 mb-2">Duración (Meses)</label>
-                                    <div style={{display:'flex', alignItems:'center', border:'1.5px solid #e5e7eb', borderRadius:'16px', overflow:'hidden', background:'#fff'}}>
+                                    <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid #e5e7eb', borderRadius: '16px', overflow: 'hidden', background: '#fff' }}>
                                         {/* Botón Menos */}
                                         <button
                                             type="button"
                                             onClick={() => setMeses(prev => Math.max(1, prev - 1))}
-                                            style={{minWidth:'44px', minHeight:'44px', display:'flex', alignItems:'center', justifyContent:'center', background:'#fdf2f8', border:'none', borderRight:'1.5px solid #f9e0f3', cursor:'pointer', flexShrink:0, transition:'background 0.15s'}}
-                                            onMouseDown={e => e.currentTarget.style.background='#f5c6e8'}
-                                            onMouseUp={e => e.currentTarget.style.background='#fdf2f8'}
-                                            onTouchStart={e => e.currentTarget.style.background='#f5c6e8'}
-                                            onTouchEnd={e => e.currentTarget.style.background='#fdf2f8'}
+                                            style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fdf2f8', border: 'none', borderRight: '1.5px solid #f9e0f3', cursor: 'pointer', flexShrink: 0, transition: 'background 0.15s' }}
+                                            onMouseDown={e => e.currentTarget.style.background = '#f5c6e8'}
+                                            onMouseUp={e => e.currentTarget.style.background = '#fdf2f8'}
+                                            onTouchStart={e => e.currentTarget.style.background = '#f5c6e8'}
+                                            onTouchEnd={e => e.currentTarget.style.background = '#fdf2f8'}
                                             aria-label="Disminuir duración"
                                         >
-                                            <svg width="18" height="18" fill="none" stroke="#DA0081" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                            <svg width="18" height="18" fill="none" stroke="#DA0081" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12" /></svg>
                                         </button>
                                         {/* Input central */}
                                         <input
@@ -651,20 +664,20 @@
                                                 const val = parseInt(e.target.value, 10);
                                                 setMeses(isNaN(val) || val < 1 ? 1 : val);
                                             }}
-                                            style={{flex:1, border:'none', outline:'none', textAlign:'center', fontSize:'20px', fontWeight:'700', color:'#111827', background:'transparent', padding:'10px 4px', minWidth:0, WebkitAppearance:'none', MozAppearance:'textfield'}}
+                                            style={{ flex: 1, border: 'none', outline: 'none', textAlign: 'center', fontSize: '20px', fontWeight: '700', color: '#111827', background: 'transparent', padding: '10px 4px', minWidth: 0, WebkitAppearance: 'none', MozAppearance: 'textfield' }}
                                         />
                                         {/* Botón Más */}
                                         <button
                                             type="button"
                                             onClick={() => setMeses(prev => prev + 1)}
-                                            style={{minWidth:'44px', minHeight:'44px', display:'flex', alignItems:'center', justifyContent:'center', background:'#fdf2f8', border:'none', borderLeft:'1.5px solid #f9e0f3', cursor:'pointer', flexShrink:0, transition:'background 0.15s'}}
-                                            onMouseDown={e => e.currentTarget.style.background='#f5c6e8'}
-                                            onMouseUp={e => e.currentTarget.style.background='#fdf2f8'}
-                                            onTouchStart={e => e.currentTarget.style.background='#f5c6e8'}
-                                            onTouchEnd={e => e.currentTarget.style.background='#fdf2f8'}
+                                            style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fdf2f8', border: 'none', borderLeft: '1.5px solid #f9e0f3', cursor: 'pointer', flexShrink: 0, transition: 'background 0.15s' }}
+                                            onMouseDown={e => e.currentTarget.style.background = '#f5c6e8'}
+                                            onMouseUp={e => e.currentTarget.style.background = '#fdf2f8'}
+                                            onTouchStart={e => e.currentTarget.style.background = '#f5c6e8'}
+                                            onTouchEnd={e => e.currentTarget.style.background = '#fdf2f8'}
                                             aria-label="Aumentar duración"
                                         >
-                                            <svg width="18" height="18" fill="none" stroke="#DA0081" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                            <svg width="18" height="18" fill="none" stroke="#DA0081" strokeWidth="2.5" strokeLinecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                                         </button>
                                     </div>
                                 </div>
@@ -721,13 +734,13 @@
             const [balance, setBalance] = useState(0);
             const [paid, setPaid] = useState(0);
             const [total, setTotal] = useState(0);
-            
+
             // Campos de Cliente
             const [clientName, setClientName] = useState('');
             const [documentId, setDocumentId] = useState('');
             const [phone, setPhone] = useState('');
             const [address, setAddress] = useState('');
-            
+
             const [isLoading, setIsLoading] = useState(false);
 
             useEffect(() => {
@@ -736,7 +749,7 @@
                     setBalance(loan.balance);
                     setPaid(loan.installmentsPaid);
                     setTotal(loan.totalInstallments);
-                    
+
                     setClientName(loan.clientName);
                     setDocumentId(loan.documentId || ''); // Necesitamos asegurar que estos vengan en el objeto mapeado
                     setPhone(loan.phone || '');
@@ -773,7 +786,7 @@
                         })
                         .eq('id', loan.id)
                         .eq('tenant_id', DEFAULT_TENANT_ID);
-                    
+
                     if (error) throw error;
                     alert('Datos actualizados exitosamente.');
                     if (onSuccess) await onSuccess();
@@ -793,13 +806,13 @@
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
                     <div className="bg-white w-full sm:max-w-lg rounded-[30px] shadow-2xl z-10 relative overflow-hidden flex flex-col max-h-[90vh] slide-up-fade">
                         <div className="bg-gray-900 px-6 py-6 text-center text-white relative">
-                             <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
+                            <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors">
                                 <IconClose className="w-5 h-5 text-white" />
                             </button>
                             <h3 className="text-xl font-extrabold">Editar Información</h3>
                             <p className="text-gray-400 text-sm mt-1">Gestión completa de crédito y cliente</p>
                         </div>
-                        
+
                         <div className="p-6 overflow-y-auto space-y-6">
                             {/* Sección Cliente */}
                             <div className="space-y-4">
@@ -1093,6 +1106,7 @@
         const LoansView = ({ loans, onOpenCartulina, onDeleteLoan, onInactivateLoan, onEditLoan }) => {
             const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
             const [filter, setFilter] = useState('all');
+            const [paymentFilter, setPaymentFilter] = useState('none');
             const [openMenuId, setOpenMenuId] = useState(null);
 
             // Cierra el menú si se hace clic fuera
@@ -1120,17 +1134,17 @@
                 const ws = window.XLSX.utils.json_to_sheet(data);
                 // Anchos de columna profesionales
                 ws['!cols'] = [
-                    {wch:25}, // Cliente
-                    {wch:20}, // Producto
-                    {wch:18}, // Capital
-                    {wch:18}, // Total
-                    {wch:18}, // Saldo
-                    {wch:10}, // Pagadas
-                    {wch:10}, // Total cuotas
-                    {wch:15}, // Valor Cuota
-                    {wch:12}, // Frecuencia
-                    {wch:14}, // Fecha
-                    {wch:12}  // Estado
+                    { wch: 25 }, // Cliente
+                    { wch: 20 }, // Producto
+                    { wch: 18 }, // Capital
+                    { wch: 18 }, // Total
+                    { wch: 18 }, // Saldo
+                    { wch: 10 }, // Pagadas
+                    { wch: 10 }, // Total cuotas
+                    { wch: 15 }, // Valor Cuota
+                    { wch: 12 }, // Frecuencia
+                    { wch: 14 }, // Fecha
+                    { wch: 12 }  // Estado
                 ];
                 const wb = window.XLSX.utils.book_new();
                 window.XLSX.utils.book_append_sheet(wb, ws, 'Cartera de Créditos');
@@ -1141,12 +1155,12 @@
                 const { jsPDF } = window.jspdf;
                 if (!jsPDF) { alert('Libreria PDF no disponible.'); return; }
                 const doc = new jsPDF({ orientation: 'landscape' });
-                
+
                 // Header del PDF
                 doc.setFontSize(18);
                 doc.setTextColor(218, 0, 129); // Nequi Magenta
                 doc.text('Reporte de Cartera de Créditos', 14, 15);
-                
+
                 doc.setFontSize(10);
                 doc.setTextColor(100, 100, 100);
                 doc.text(`Fecha de generación: ${new Date().toLocaleDateString('es-CO')}`, 14, 22);
@@ -1169,14 +1183,14 @@
                     head: [['Cliente', 'Producto/Línea', 'Capital', 'Total', 'Saldo', 'Cuotas', 'Frecuencia', 'Inicio', 'Estado']],
                     body: rows,
                     theme: 'striped',
-                    styles: { 
-                        fontSize: 7.5, 
+                    styles: {
+                        fontSize: 7.5,
                         cellPadding: 3,
                         valign: 'middle',
                         overflow: 'linebreak'
                     },
-                    headStyles: { 
-                        fillColor: [218, 0, 129], 
+                    headStyles: {
+                        fillColor: [218, 0, 129],
                         textColor: [255, 255, 255],
                         fontStyle: 'bold',
                         halign: 'center'
@@ -1209,6 +1223,24 @@
                     sortableLoans = sortableLoans.filter(loan => loan.status === filter);
                 }
 
+                // Filtro por fecha de cobro
+                if (paymentFilter !== 'none') {
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    const todayStr = today.toISOString().split('T')[0];
+                    let maxDate = new Date(today);
+                    if (paymentFilter === 'today') maxDate = new Date(today);
+                    else if (paymentFilter === 'week') maxDate.setDate(maxDate.getDate() + 7);
+                    else if (paymentFilter === 'fortnight') maxDate.setDate(maxDate.getDate() + 15);
+                    else if (paymentFilter === 'month') maxDate.setDate(maxDate.getDate() + 30);
+                    const maxStr = maxDate.toISOString().split('T')[0];
+
+                    sortableLoans = sortableLoans.filter(loan => {
+                        if (!loan.nextPaymentDate) return false;
+                        return loan.nextPaymentDate >= todayStr && loan.nextPaymentDate <= maxStr;
+                    });
+                }
+
                 sortableLoans.sort((a, b) => {
                     if (a[sortConfig.key] < b[sortConfig.key]) {
                         return sortConfig.direction === 'asc' ? -1 : 1;
@@ -1219,7 +1251,7 @@
                     return 0;
                 });
                 return sortableLoans;
-            }, [loans, sortConfig, filter]);
+            }, [loans, sortConfig, filter, paymentFilter]);
 
             const requestSort = (key) => {
                 let direction = 'asc';
@@ -1240,90 +1272,109 @@
             };
 
             return (
-                <div className="pb-24 fade-in" style={{maxWidth:'100%',margin:'0 auto'}}>
+                <div className="pb-24 fade-in" style={{ maxWidth: '100%', margin: '0 auto' }}>
                     {/* Header */}
-                    <div style={{padding:'20px 16px 0',display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:12}}>
+                    <div style={{ padding: '20px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12 }}>
                         <div>
-                            <h2 style={{fontSize:22,fontWeight:800,color:'#111827',margin:0}}>Préstamos</h2>
-                            <p style={{fontSize:12,color:'#9ca3af',margin:'2px 0 0'}}>Gestiona tu cartera · {sortedLoans.length} registros</p>
+                            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#111827', margin: 0 }}>Préstamos</h2>
+                            <p style={{ fontSize: 12, color: '#9ca3af', margin: '2px 0 0' }}>Gestiona tu cartera · {sortedLoans.length} registros</p>
                         </div>
-                        <div style={{display:'flex',gap:6}}>
-                            <button onClick={exportToExcel} style={{width:38,height:38,borderRadius:10,border:'1.5px solid #d1fae5',background:'#ecfdf5',color:'#059669',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}} title="Excel"><IconDownload style={{width:18,height:18}} /></button>
-                            <button onClick={exportToPDF} style={{width:38,height:38,borderRadius:10,border:'1.5px solid #fecdd3',background:'#fff1f2',color:'#e11d48',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}} title="PDF"><IconFileText style={{width:18,height:18}} /></button>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                            <button onClick={exportToExcel} style={{ width: 38, height: 38, borderRadius: 10, border: '1.5px solid #d1fae5', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} title="Excel"><IconDownload style={{ width: 18, height: 18 }} /></button>
+                            <button onClick={exportToPDF} style={{ width: 38, height: 38, borderRadius: 10, border: '1.5px solid #fecdd3', background: '#fff1f2', color: '#e11d48', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} title="PDF"><IconFileText style={{ width: 18, height: 18 }} /></button>
                         </div>
                     </div>
                     {/* Filters */}
-                    <div style={{padding:'0 16px',display:'flex',gap:6,marginBottom:14,overflowX:'auto'}}>
-                        {['all','active','late','completed','inactive'].map(f=>(
-                            <button key={f} onClick={()=>setFilter(f)} style={{padding:'6px 16px',borderRadius:20,fontSize:12,fontWeight:600,whiteSpace:'nowrap',border:filter===f?'none':'1px solid #e5e7eb',background:filter===f?'#DA0081':'#fff',color:filter===f?'#fff':'#6b7280',cursor:'pointer',boxShadow:filter===f?'0 3px 12px rgba(218,0,129,0.3)':'none'}}>
-                                {f==='all'?'Todos':f==='active'?'Activos':f==='late'?'Atrasados':f==='completed'?'Pagados':'Inactivos'}
+                    <div style={{ padding: '0 16px', display: 'flex', gap: 6, marginBottom: 8, overflowX: 'auto' }}>
+                        {['all', 'active', 'late', 'completed', 'inactive'].map(f => (
+                            <button key={f} onClick={() => setFilter(f)} style={{ padding: '6px 16px', borderRadius: 20, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', border: filter === f ? 'none' : '1px solid #e5e7eb', background: filter === f ? '#DA0081' : '#fff', color: filter === f ? '#fff' : '#6b7280', cursor: 'pointer', boxShadow: filter === f ? '0 3px 12px rgba(218,0,129,0.3)' : 'none' }}>
+                                {f === 'all' ? 'Todos' : f === 'active' ? 'Activos' : f === 'late' ? 'Atrasados' : f === 'completed' ? 'Pagados' : 'Inactivos'}
                             </button>
                         ))}
                     </div>
+                    {/* Filtros de Fecha de Cobro */}
+                    <div style={{ padding: '0 16px', marginBottom: 14 }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>📅 Cobros Próximos</p>
+                        <div style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
+                            {[{k:'none',l:'Sin filtro'},{k:'today',l:'Hoy'},{k:'week',l:'Esta Semana'},{k:'fortnight',l:'Quincena'},{k:'month',l:'Este Mes'}].map(f => (
+                                <button key={f.k} onClick={() => setPaymentFilter(f.k)} style={{ padding: '6px 14px', borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', border: paymentFilter === f.k ? 'none' : '1.5px solid #e0e7ff', background: paymentFilter === f.k ? '#111827' : '#f0f4ff', color: paymentFilter === f.k ? '#fff' : '#4338ca', cursor: 'pointer', boxShadow: paymentFilter === f.k ? '0 3px 12px rgba(0,0,0,0.2)' : 'none', transition: 'all .15s' }}>
+                                    {f.l}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     {/* Scroll hint for mobile */}
-                    <div style={{padding:'0 16px 6px',display:'flex',alignItems:'center',gap:4,color:'#DA0081',fontSize:11,fontWeight:600}}>
-                        <span style={{opacity:0.6}}>👆</span> Desliza para ver todas las columnas →
+                    <div style={{ padding: '0 16px 6px', display: 'flex', alignItems: 'center', gap: 4, color: '#DA0081', fontSize: 11, fontWeight: 600 }}>
+                        <span style={{ opacity: 0.6 }}>👆</span> Desliza para ver todas las columnas →
                     </div>
                     {/* Excel Table - Scrollable Container */}
-                    <div style={{margin:'0 8px',border:'2px solid #DA0081',borderRadius:6,overflow:'hidden',background:'#fff',boxShadow:'0 4px 20px rgba(0,0,0,0.08)'}}>
-                      <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
-                        {/* Header Row */}
-                        <div style={{display:'grid',gridTemplateColumns:'160px 120px 120px 80px 90px 90px 110px',minWidth:770,background:'linear-gradient(135deg,#DA0081,#c4006f)',color:'#fff',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:0.5}}>
-                            <div onClick={()=>requestSort('clientName')} style={{padding:'10px 12px',borderRight:'1px solid rgba(255,255,255,0.2)',cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>Cliente {sortConfig.key==='clientName'&&(sortConfig.direction==='asc'?'▲':'▼')}</div>
-                            <div onClick={()=>requestSort('amount')} style={{padding:'10px 8px',borderRight:'1px solid rgba(255,255,255,0.2)',cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>Capital {sortConfig.key==='amount'&&(sortConfig.direction==='asc'?'▲':'▼')}</div>
-                            <div style={{padding:'10px 8px',borderRight:'1px solid rgba(255,255,255,0.2)'}}>Saldo</div>
-                            <div style={{padding:'10px 8px',borderRight:'1px solid rgba(255,255,255,0.2)',textAlign:'center'}}>Cuotas</div>
-                            <div onClick={()=>requestSort('date')} style={{padding:'10px 8px',borderRight:'1px solid rgba(255,255,255,0.2)',cursor:'pointer'}}>Fecha {sortConfig.key==='date'&&(sortConfig.direction==='asc'?'▲':'▼')}</div>
-                            <div style={{padding:'10px 8px',borderRight:'1px solid rgba(255,255,255,0.2)',textAlign:'center'}}>Estado</div>
-                            <div style={{padding:'10px 8px',textAlign:'center'}}>Acciones</div>
-                        </div>
-                        {/* Data Rows */}
-                        {sortedLoans.map((loan,idx)=>{
-                            const addressInfo = loan.address ? ` Estaremos pasando por tu dirección en ${loan.address}${loan.reference ? ` - ${loan.reference}` : ''}.` : '';
-                            const whatsappMsg = encodeURIComponent(`Hola ${loan.clientName}, te recordamos tu cuota hoy.${addressInfo}`);
-                            const whatsappLink = `https://wa.me/${loan.phone}?text=${whatsappMsg}`;
-                            return (
-                                <div key={loan.id} style={{display:'grid',gridTemplateColumns:'160px 120px 120px 80px 90px 90px 110px',minWidth:770,background:idx%2===0?'#fff':'#fdf2f8',borderBottom:'1px solid #f3e8ff',fontSize:13,transition:'background .15s'}} onMouseEnter={e=>e.currentTarget.style.background='#fce7f3'} onMouseLeave={e=>e.currentTarget.style.background=idx%2===0?'#fff':'#fdf2f8'}>
-                                    {/* Cliente */}
-                                    <div style={{padding:'10px 12px',borderRight:'1px solid #f1f5f9',display:'flex',alignItems:'center',gap:8,minWidth:0}}>
-                                        <div style={{width:30,height:30,borderRadius:'50%',background:'linear-gradient(135deg,#DA0081,#9333ea)',color:'#fff',fontSize:12,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{loan.clientName.charAt(0).toUpperCase()}</div>
-                                        <span style={{fontWeight:700,color:'#111827',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{loan.clientName}</span>
-                                    </div>
-                                    {/* Capital */}
-                                    <div style={{padding:'10px 8px',borderRight:'1px solid #f1f5f9',fontWeight:600,color:'#111827',display:'flex',alignItems:'center'}}>{formatCurrency(loan.amount)}</div>
-                                    {/* Saldo */}
-                                    <div style={{padding:'10px 8px',borderRight:'1px solid #f1f5f9',fontWeight:700,color:loan.balance<=0?'#059669':'#DA0081',display:'flex',alignItems:'center'}}>{formatCurrency(Math.round(loan.balance))}</div>
-                                    {/* Cuotas */}
-                                    <div style={{padding:'10px 8px',borderRight:'1px solid #f1f5f9',textAlign:'center',display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{fontWeight:800,color:'#111827'}}>{loan.installmentsPaid}</span><span style={{color:'#d1d5db',margin:'0 2px'}}>/</span><span style={{color:'#6b7280'}}>{loan.totalInstallments}</span></div>
-                                    {/* Fecha */}
-                                    <div style={{padding:'10px 8px',borderRight:'1px solid #f1f5f9',color:'#6b7280',fontSize:12,display:'flex',alignItems:'center'}}>{new Date(loan.date).toLocaleDateString('es-CO',{day:'2-digit',month:'short'})}</div>
-                                    {/* Estado */}
-                                    <div style={{padding:'10px 8px',borderRight:'1px solid #f1f5f9',display:'flex',alignItems:'center',justifyContent:'center'}}>{getStatusBadge(loan.status)}</div>
-                                    {/* Acciones */}
-                                    <div style={{padding:'6px 4px',display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
-                                        <button onClick={()=>onOpenCartulina(loan)} style={{width:28,height:28,borderRadius:6,border:'1px solid #e5e7eb',background:'#f9fafb',color:'#6b7280',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',padding:0}} title="Cartulina"><IconReceipt style={{width:14,height:14}} /></button>
-                                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{width:28,height:28,borderRadius:6,border:'1px solid #bbf7d0',background:'#dcfce7',color:'#16a34a',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',textDecoration:'none'}} title="WhatsApp"><IconWhatsApp style={{width:14,height:14}} /></a>
-                                        <div style={{position:'relative'}}>
-                                            <button onClick={e=>{e.stopPropagation();setOpenMenuId(openMenuId===loan.id?null:loan.id)}} style={{width:28,height:28,borderRadius:6,border:'1px solid #e5e7eb',background:'#f9fafb',color:'#9ca3af',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',padding:0}} title="Más"><IconDotsVertical style={{width:14,height:14}} /></button>
-                                            {openMenuId===loan.id&&(
-                                                <div style={{position:'absolute',right:0,top:32,width:190,background:'#fff',borderRadius:14,boxShadow:'0 12px 40px rgba(0,0,0,0.2)',border:'1px solid #e5e7eb',zIndex:9999,overflow:'hidden',touchAction:'none'}} onClick={e=>e.stopPropagation()}>
-                                                    <button onClick={e=>{e.stopPropagation();e.preventDefault();setOpenMenuId(null);onInactivateLoan(loan.id)}} style={{width:'100%',textAlign:'left',padding:'12px 16px',fontSize:13,fontWeight:600,color:'#6b7280',background:'#fff',border:'none',borderBottom:'1px solid #f3f4f6',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}><IconPause style={{width:15,height:15}} /> Inactivar Crédito</button>
-                                                    <button onClick={e=>{e.stopPropagation();e.preventDefault();setOpenMenuId(null);onEditLoan(loan)}} style={{width:'100%',textAlign:'left',padding:'12px 16px',fontSize:13,fontWeight:600,color:'#2563eb',background:'#fff',border:'none',borderBottom:'1px solid #f3f4f6',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}><IconEdit style={{width:15,height:15}} /> Editar Crédito</button>
-                                                    <button onClick={e=>{e.stopPropagation();e.preventDefault();setOpenMenuId(null);onDeleteLoan(loan.id)}} style={{width:'100%',textAlign:'left',padding:'12px 16px',fontSize:13,fontWeight:600,color:'#dc2626',background:'#fff',border:'none',cursor:'pointer',display:'flex',alignItems:'center',gap:10}}><svg style={{width:15,height:15}} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Eliminar Crédito</button>
-                                                </div>
-                                            )}
+                    <div style={{ margin: '0 8px', border: '2px solid #DA0081', borderRadius: 6, overflow: 'hidden', background: '#fff', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+                        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                            {/* Header Row */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '150px 110px 110px 75px 95px 85px 85px 110px', minWidth: 820, background: 'linear-gradient(135deg,#DA0081,#c4006f)', color: '#fff', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                <div onClick={() => requestSort('clientName')} style={{ padding: '10px 10px', borderRight: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>Cliente {sortConfig.key === 'clientName' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</div>
+                                <div onClick={() => requestSort('amount')} style={{ padding: '10px 6px', borderRight: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>Capital {sortConfig.key === 'amount' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</div>
+                                <div style={{ padding: '10px 6px', borderRight: '1px solid rgba(255,255,255,0.2)' }}>Saldo</div>
+                                <div style={{ padding: '10px 6px', borderRight: '1px solid rgba(255,255,255,0.2)', textAlign: 'center' }}>Cuotas</div>
+                                <div onClick={() => requestSort('nextPaymentDate')} style={{ padding: '10px 6px', borderRight: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>Próx. Cobro {sortConfig.key === 'nextPaymentDate' && (sortConfig.direction === 'asc' ? '▲' : '▼')}</div>
+                                <div style={{ padding: '10px 6px', borderRight: '1px solid rgba(255,255,255,0.2)', textAlign: 'center' }}>Estado</div>
+                                <div style={{ padding: '10px 6px', textAlign: 'center' }}>Acciones</div>
+                            </div>
+                            {/* Data Rows */}
+                            {sortedLoans.map((loan, idx) => {
+                                const addressInfo = loan.address ? ` Estaremos pasando por tu dirección en ${loan.address}${loan.reference ? ` - ${loan.reference}` : ''}.` : '';
+                                const whatsappMsg = encodeURIComponent(`Hola ${loan.clientName}, te recordamos tu cuota hoy.${addressInfo}`);
+                                const whatsappLink = `https://wa.me/${loan.phone}?text=${whatsappMsg}`;
+                                return (
+                                    <div key={loan.id} style={{ display: 'grid', gridTemplateColumns: '150px 110px 110px 75px 95px 85px 85px 110px', minWidth: 820, background: idx % 2 === 0 ? '#fff' : '#fdf2f8', borderBottom: '1px solid #f3e8ff', fontSize: 12, transition: 'background .15s' }} onMouseEnter={e => e.currentTarget.style.background = '#fce7f3'} onMouseLeave={e => e.currentTarget.style.background = idx % 2 === 0 ? '#fff' : '#fdf2f8'}>
+                                        {/* Cliente */}
+                                        <div style={{ padding: '10px 10px', borderRight: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#DA0081,#9333ea)', color: '#fff', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{loan.clientName.charAt(0).toUpperCase()}</div>
+                                            <span style={{ fontWeight: 700, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loan.clientName}</span>
+                                        </div>
+                                        {/* Capital */}
+                                        <div style={{ padding: '10px 6px', borderRight: '1px solid #f1f5f9', fontWeight: 600, color: '#111827', display: 'flex', alignItems: 'center' }}>{formatCurrency(loan.amount)}</div>
+                                        {/* Saldo */}
+                                        <div style={{ padding: '10px 6px', borderRight: '1px solid #f1f5f9', fontWeight: 700, color: loan.balance <= 0 ? '#059669' : '#DA0081', display: 'flex', alignItems: 'center' }}>{formatCurrency(Math.round(loan.balance))}</div>
+                                        {/* Cuotas */}
+                                        <div style={{ padding: '10px 6px', borderRight: '1px solid #f1f5f9', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ fontWeight: 800, color: '#111827' }}>{loan.installmentsPaid}</span><span style={{ color: '#d1d5db', margin: '0 2px' }}>/</span><span style={{ color: '#6b7280' }}>{loan.totalInstallments}</span></div>
+                                        {/* Próx. Cobro */}
+                                        <div style={{ padding: '10px 6px', borderRight: '1px solid #f1f5f9', display: 'flex', alignItems: 'center' }}>
+                                            {loan.nextPaymentDate ? (() => {
+                                                const today = new Date(); today.setHours(0,0,0,0);
+                                                const npd = new Date(loan.nextPaymentDate + 'T12:00:00');
+                                                const isToday = loan.nextPaymentDate === today.toISOString().split('T')[0];
+                                                const isPast = npd < today;
+                                                return <span style={{ fontSize: 11, fontWeight: 700, color: isPast ? '#dc2626' : isToday ? '#d97706' : '#059669', background: isPast ? '#fef2f2' : isToday ? '#fffbeb' : '#f0fdf4', padding: '2px 6px', borderRadius: 8 }}>{isToday ? '¡HOY!' : new Date(loan.nextPaymentDate + 'T12:00:00').toLocaleDateString('es-CO', { day:'2-digit', month:'short' })}</span>;
+                                            })() : <span style={{ color: '#d1d5db', fontSize: 11 }}>—</span>}
+                                        </div>
+                                        {/* Estado */}
+                                        <div style={{ padding: '10px 8px', borderRight: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{getStatusBadge(loan.status)}</div>
+                                        {/* Acciones */}
+                                        <div style={{ padding: '6px 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                                            <button onClick={() => onOpenCartulina(loan)} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }} title="Cartulina"><IconReceipt style={{ width: 14, height: 14 }} /></button>
+                                            <a href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #bbf7d0', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', textDecoration: 'none' }} title="WhatsApp"><IconWhatsApp style={{ width: 14, height: 14 }} /></a>
+                                            <div style={{ position: 'relative' }}>
+                                                <button onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === loan.id ? null : loan.id) }} style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#9ca3af', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }} title="Más"><IconDotsVertical style={{ width: 14, height: 14 }} /></button>
+                                                {openMenuId === loan.id && (
+                                                    <div style={{ position: 'absolute', right: 0, top: 32, width: 190, background: '#fff', borderRadius: 14, boxShadow: '0 12px 40px rgba(0,0,0,0.2)', border: '1px solid #e5e7eb', zIndex: 9999, overflow: 'hidden', touchAction: 'none' }} onClick={e => e.stopPropagation()}>
+                                                        <button onClick={e => { e.stopPropagation(); e.preventDefault(); setOpenMenuId(null); onInactivateLoan(loan.id) }} style={{ width: '100%', textAlign: 'left', padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#6b7280', background: '#fff', border: 'none', borderBottom: '1px solid #f3f4f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}><IconPause style={{ width: 15, height: 15 }} /> Inactivar Crédito</button>
+                                                        <button onClick={e => { e.stopPropagation(); e.preventDefault(); setOpenMenuId(null); onEditLoan(loan) }} style={{ width: '100%', textAlign: 'left', padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#2563eb', background: '#fff', border: 'none', borderBottom: '1px solid #f3f4f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}><IconEdit style={{ width: 15, height: 15 }} /> Editar Crédito</button>
+                                                        <button onClick={e => { e.stopPropagation(); e.preventDefault(); setOpenMenuId(null); onDeleteLoan(loan.id) }} style={{ width: '100%', textAlign: 'left', padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#dc2626', background: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}><svg style={{ width: 15, height: 15 }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Eliminar Crédito</button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
+                                );
+                            })}
+                            {sortedLoans.length === 0 && (
+                                <div style={{ padding: '40px 20px', textAlign: 'center', color: '#9ca3af', fontSize: 14, background: '#fafafa' }}>
+                                    <div style={{ fontSize: 40, marginBottom: 8 }}>📋</div>
+                                    No hay préstamos que coincidan con el filtro.
                                 </div>
-                            );
-                        })}
-                        {sortedLoans.length===0&&(
-                            <div style={{padding:'40px 20px',textAlign:'center',color:'#9ca3af',fontSize:14,background:'#fafafa'}}>
-                                <div style={{fontSize:40,marginBottom:8}}>📋</div>
-                                No hay préstamos que coincidan con el filtro.
-                            </div>
-                        )}
-                      </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             );
@@ -1398,7 +1449,7 @@
                     try {
                         const content = e.target.result;
                         let jsonData = [];
-                        
+
                         const requiredHeaders = [
                             'identificacion', 'nombre_cliente', 'telefono', 'direccion',
                             'monto_capital', 'nombre_linea_credito', 'frecuencia_pago',
@@ -1408,7 +1459,7 @@
                         if (selectedFile.name.endsWith('.csv')) {
                             const lines = content.split('\n');
                             const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-                            
+
                             // VALIDACIÓN DE CABECERAS
                             const missing = requiredHeaders.filter(h => !headers.includes(h));
                             if (missing.length > 0) {
@@ -1562,7 +1613,7 @@
                         }
 
                         setImportStats({ success: successCount, error: errorCount, details: errorDetails });
-                        
+
                         // --- Sincronización del Dashboard ---
                         if (successCount > 0 && onSuccess) {
                             console.log(`Importación finalizada con éxito (${successCount} registros). Disparando actualización de Dashboard...`);
@@ -2030,7 +2081,7 @@
                                     onChange={e => setFechaGasto(e.target.value)}
                                     max={new Date().toISOString().split('T')[0]}
                                     className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl py-3.5 px-4 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-nequi focus:border-nequi outline-none transition-all"
-                                    style={{colorScheme:'light', minHeight:48}}
+                                    style={{ colorScheme: 'light', minHeight: 48 }}
                                 />
                                 <p className="text-[10px] text-gray-400 mt-1">Puedes registrar gastos de días anteriores</p>
                             </div>
@@ -2204,7 +2255,7 @@
                                     onChange={e => setFechaCobro(e.target.value)}
                                     max={new Date().toISOString().split('T')[0]}
                                     className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl py-3 px-4 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-nequi focus:border-nequi outline-none transition-all"
-                                    style={{colorScheme:'light', minHeight:46}}
+                                    style={{ colorScheme: 'light', minHeight: 46 }}
                                 />
                                 <p className="text-[10px] text-gray-400 mt-1">Permite registrar cobros retroactivos</p>
                             </div>
@@ -2601,13 +2652,13 @@
                         expData.forEach(e => {
                             const fechaExp = e.fecha_gasto || e.created_at?.split('T')[0];
                             if (!fechaExp) return;
-                            const diff = Math.floor((new Date() - new Date(fechaExp)) / (1000*60*60*24));
+                            const diff = Math.floor((new Date() - new Date(fechaExp)) / (1000 * 60 * 60 * 24));
                             if (diff >= 0 && diff < dias) dataGastos[dias - 1 - diff] += Number(e.amount);
                         });
                     }
                     renderChart(dataGastos, labels);
                     setIsLoaded(true);
-                } catch(err) { console.error('Error fetching reports:', err); }
+                } catch (err) { console.error('Error fetching reports:', err); }
                 finally { setIsLoadingExpenses(false); }
             };
 
@@ -2668,14 +2719,14 @@
                     'Descripción': e.description || ''
                 }));
                 const ws = window.XLSX.utils.json_to_sheet(data);
-                ws['!cols'] = [{wch:14},{wch:16},{wch:18},{wch:35}];
+                ws['!cols'] = [{ wch: 14 }, { wch: 16 }, { wch: 18 }, { wch: 35 }];
                 const wb = window.XLSX.utils.book_new();
                 window.XLSX.utils.book_append_sheet(wb, ws, 'Gastos');
                 window.XLSX.writeFile(wb, `Reporte_Gastos_${periodoFiltro}dias_${new Date().toISOString().split('T')[0]}.xlsx`);
             };
 
-            const catColors = { transporte:'bg-blue-100 text-blue-700', alimentacion:'bg-orange-100 text-orange-700', comunicaciones:'bg-purple-100 text-purple-700', otros:'bg-gray-100 text-gray-600' };
-            const catLabels = { transporte:'🚗 Transporte', alimentacion:'☕ Comida', comunicaciones:'📱 Datos', otros:'➕ Otros' };
+            const catColors = { transporte: 'bg-blue-100 text-blue-700', alimentacion: 'bg-orange-100 text-orange-700', comunicaciones: 'bg-purple-100 text-purple-700', otros: 'bg-gray-100 text-gray-600' };
+            const catLabels = { transporte: '🚗 Transporte', alimentacion: '☕ Comida', comunicaciones: '📱 Datos', otros: '➕ Otros' };
 
             const filteredExpenses = expenses.filter(e =>
                 !searchTerm ||
@@ -2695,9 +2746,9 @@
                                 <p className="text-gray-400 text-sm">Evolución de Caja</p>
                             </div>
                             <div className="flex gap-2">
-                                {['7','14','30'].map(d => (
+                                {['7', '14', '30'].map(d => (
                                     <button key={d} onClick={() => setPeriodoFiltro(d)}
-                                        style={{padding:'6px 12px',borderRadius:20,fontSize:11,fontWeight:700,border:'none',background:periodoFiltro===d?'#DA0081':'rgba(255,255,255,0.1)',color:'#fff',cursor:'pointer'}}
+                                        style={{ padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700, border: 'none', background: periodoFiltro === d ? '#DA0081' : 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer' }}
                                     >{d}d</button>
                                 ))}
                             </div>
@@ -2738,7 +2789,7 @@
                         <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 overflow-hidden">
                             <div className="p-4 border-b border-gray-50 flex justify-between items-center gap-3">
                                 <div className="flex-1 relative">
-                                    <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                    <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                     <input
                                         type="text"
                                         placeholder="Buscar gastos..."
@@ -2755,39 +2806,39 @@
                             </div>
 
                             {/* Header Table */}
-                            <div style={{display:'grid',gridTemplateColumns:'100px 100px 90px 1fr',background:'linear-gradient(135deg,#DA0081,#c4006f)',color:'#fff',fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:0.5}}>
-                                <div style={{padding:'8px 12px'}}>Fecha</div>
-                                <div style={{padding:'8px 8px'}}>Valor</div>
-                                <div style={{padding:'8px 8px'}}>Categoría</div>
-                                <div style={{padding:'8px 8px'}}>Descripción</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '100px 100px 90px 1fr', background: 'linear-gradient(135deg,#DA0081,#c4006f)', color: '#fff', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                                <div style={{ padding: '8px 12px' }}>Fecha</div>
+                                <div style={{ padding: '8px 8px' }}>Valor</div>
+                                <div style={{ padding: '8px 8px' }}>Categoría</div>
+                                <div style={{ padding: '8px 8px' }}>Descripción</div>
                             </div>
 
-                            <div style={{maxHeight:320,overflowY:'auto'}}>
+                            <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                                 {isLoadingExpenses ? (
-                                    <div style={{padding:'30px',textAlign:'center',color:'#9ca3af',fontSize:13}}>Cargando gastos...</div>
+                                    <div style={{ padding: '30px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>Cargando gastos...</div>
                                 ) : filteredExpenses.length === 0 ? (
-                                    <div style={{padding:'30px',textAlign:'center',color:'#9ca3af',fontSize:13}}>
-                                        <div style={{fontSize:32,marginBottom:8}}>💸</div>
+                                    <div style={{ padding: '30px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                                        <div style={{ fontSize: 32, marginBottom: 8 }}>💸</div>
                                         No hay gastos en este período.
                                     </div>
                                 ) : filteredExpenses.map((e, idx) => (
-                                    <div key={e.id || idx} style={{display:'grid',gridTemplateColumns:'100px 100px 90px 1fr',background:idx%2===0?'#fff':'#fdf2f8',borderBottom:'1px solid #f3e8ff',fontSize:12,alignItems:'center'}}>
-                                        <div style={{padding:'9px 12px',color:'#4b5563',fontWeight:500}}>{e.fecha_gasto || e.created_at?.split('T')[0] || '-'}</div>
-                                        <div style={{padding:'9px 8px',fontWeight:700,color:'#DA0081'}}>{formatCurrency(e.amount)}</div>
-                                        <div style={{padding:'9px 8px'}}>
-                                            <span style={{fontSize:9,fontWeight:700,padding:'2px 7px',borderRadius:20,background:'#fce7f3',color:'#DA0081',textTransform:'uppercase'}}>
+                                    <div key={e.id || idx} style={{ display: 'grid', gridTemplateColumns: '100px 100px 90px 1fr', background: idx % 2 === 0 ? '#fff' : '#fdf2f8', borderBottom: '1px solid #f3e8ff', fontSize: 12, alignItems: 'center' }}>
+                                        <div style={{ padding: '9px 12px', color: '#4b5563', fontWeight: 500 }}>{e.fecha_gasto || e.created_at?.split('T')[0] || '-'}</div>
+                                        <div style={{ padding: '9px 8px', fontWeight: 700, color: '#DA0081' }}>{formatCurrency(e.amount)}</div>
+                                        <div style={{ padding: '9px 8px' }}>
+                                            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: '#fce7f3', color: '#DA0081', textTransform: 'uppercase' }}>
                                                 {catLabels[e.category] || e.category}
                                             </span>
                                         </div>
-                                        <div style={{padding:'9px 8px',color:'#6b7280',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{e.description || '—'}</div>
+                                        <div style={{ padding: '9px 8px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.description || '—'}</div>
                                     </div>
                                 ))}
                             </div>
 
                             {filteredExpenses.length > 0 && (
-                                <div style={{padding:'10px 12px',background:'#f8fafc',borderTop:'2px solid #DA0081',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                                    <span style={{fontSize:11,color:'#6b7280',fontWeight:600}}>{filteredExpenses.length} registros</span>
-                                    <span style={{fontSize:13,fontWeight:900,color:'#DA0081'}}>{formatCurrency(totalGastosPeriodo)}</span>
+                                <div style={{ padding: '10px 12px', background: '#f8fafc', borderTop: '2px solid #DA0081', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>{filteredExpenses.length} registros</span>
+                                    <span style={{ fontSize: 13, fontWeight: 900, color: '#DA0081' }}>{formatCurrency(totalGastosPeriodo)}</span>
                                 </div>
                             )}
                         </div>
@@ -2854,12 +2905,12 @@
                     // Verificar licencia
                     if (data.is_blocked) { setLicenseStatus('blocked'); setIsLoggedIn(true); return; }
                     if (data.license_end) {
-                        const daysLeft = Math.ceil((new Date(data.license_end) - new Date()) / (1000*60*60*24));
+                        const daysLeft = Math.ceil((new Date(data.license_end) - new Date()) / (1000 * 60 * 60 * 24));
                         if (daysLeft <= 0) { setLicenseStatus('expired'); setIsLoggedIn(true); return; }
                     }
                     setLicenseStatus('active');
                     setIsLoggedIn(true);
-                } catch(e) { setLoginError('Error de conexión: ' + e.message); }
+                } catch (e) { setLoginError('Error de conexión: ' + e.message); }
                 finally { setLoginLoading(false); }
             };
 
@@ -2879,7 +2930,7 @@
                     setTenantInfo({ business_name: data.business_name, owner_name: data.owner_name });
                     if (data.is_blocked) { setLicenseStatus('blocked'); return; }
                     if (data.license_end) {
-                        const daysLeft = Math.ceil((new Date(data.license_end) - new Date()) / (1000*60*60*24));
+                        const daysLeft = Math.ceil((new Date(data.license_end) - new Date()) / (1000 * 60 * 60 * 24));
                         if (daysLeft <= 0) { setLicenseStatus('expired'); return; }
                     }
                     setLicenseStatus('active');
@@ -2947,7 +2998,7 @@
 
                             // Lógica de Estados (Integridad de Datos)
                             let dynamicStatus = l.status || 'active'; // Priorizar estado de DB o defecto
-                            
+
                             // Si no está inactivo, recalcular según el saldo y pagos
                             if (dynamicStatus !== 'inactive') {
                                 if (balance <= 0.01) {
@@ -2975,9 +3026,27 @@
                             const lineMatch = creditLines.find(cl => Number(cl.rate) === Number(l.interest_rate) && cl.type === l.interest_type);
                             const lineName = lineMatch ? lineMatch.name : (l.nombre_linea_credito || l.line_name || 'Crédito Personalizado');
 
+                            // Calcular próxima fecha de pago si no está definida manualmente
+                            let computedNextPayment = l.next_payment_date || null;
+                            if (!computedNextPayment && l.start_date) {
+                                const start = new Date(l.start_date + 'T12:00:00');
+                                const paidCount = l.installments_paid || 0;
+                                const nextNum = paidCount + 1;
+                                if (l.frequency === 'diario') {
+                                    start.setDate(start.getDate() + nextNum);
+                                } else if (l.frequency === 'semanal') {
+                                    start.setDate(start.getDate() + (nextNum * 7));
+                                } else if (l.frequency === 'quincenal') {
+                                    start.setDate(start.getDate() + (nextNum * 15));
+                                } else { // mensual
+                                    start.setMonth(start.getMonth() + nextNum);
+                                }
+                                computedNextPayment = start.toISOString().split('T')[0];
+                            }
+
                             return {
                                 id: l.id,
-                                clientId: l.client_id, 
+                                clientId: l.client_id,
                                 clientName: l.clients?.name || 'Desconocido',
                                 documentId: l.clients?.document_id,
                                 lineName: lineName,
@@ -2989,18 +3058,21 @@
                                 installmentsPaid: l.installments_paid,
                                 frequency: l.frequency,
                                 date: l.start_date,
+                                nextPaymentDate: computedNextPayment,
+                                nextPaymentDateManual: l.next_payment_date || null,
                                 status: dynamicStatus,
                                 phone: l.clients?.phone_main,
                                 address: l.clients?.address,
-                                reference: l.clients?.reference_point
+                                reference: l.clients?.reference_point,
+                                interestRate: l.interest_rate
                             };
                         });
-                        
+
                         const totalColocada = mappedLoans.reduce((acc, l) => acc + l.totalPayable, 0);
                         console.log("📊 [fetchData] Sincronización completa:");
                         console.log(`   - Préstamos: ${mappedLoans.length}`);
                         console.log(`   - Cartera Total: ${formatCurrency(totalColocada)}`);
-                        
+
                         setLoans(mappedLoans);
                     }
                 } catch (error) {
@@ -3087,43 +3159,43 @@
             // ── Pantalla de Login ──────────────────────────────────────────────
             if (!isLoggedIn) {
                 return (
-                    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg,#0f0f13 0%,#1a0a2e 50%,#0f0f13 100%)',padding:24,fontFamily:'Inter,sans-serif'}}>
-                        <div style={{width:'100%',maxWidth:380}}>
+                    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#0f0f13 0%,#1a0a2e 50%,#0f0f13 100%)', padding: 24, fontFamily: 'Inter,sans-serif' }}>
+                        <div style={{ width: '100%', maxWidth: 380 }}>
                             {/* Logo / Icono */}
-                            <div style={{textAlign:'center',marginBottom:32}}>
-                                <div style={{width:72,height:72,background:'linear-gradient(135deg,#DA0081,#9333ea)',borderRadius:22,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px',fontSize:32,boxShadow:'0 8px 32px rgba(218,0,129,0.3)'}}>💰</div>
-                                <h1 style={{fontSize:24,fontWeight:800,color:'#f1f5f9',marginBottom:4}}>Gestión de Créditos</h1>
-                                <p style={{color:'#6b7280',fontSize:13}}>Ingresa con tus credenciales</p>
+                            <div style={{ textAlign: 'center', marginBottom: 32 }}>
+                                <div style={{ width: 72, height: 72, background: 'linear-gradient(135deg,#DA0081,#9333ea)', borderRadius: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 32, boxShadow: '0 8px 32px rgba(218,0,129,0.3)' }}>💰</div>
+                                <h1 style={{ fontSize: 24, fontWeight: 800, color: '#f1f5f9', marginBottom: 4 }}>Gestión de Créditos</h1>
+                                <p style={{ color: '#6b7280', fontSize: 13 }}>Ingresa con tus credenciales</p>
                             </div>
                             {/* Formulario */}
-                            <div style={{background:'#16161f',border:'1px solid #2a2a3a',borderRadius:24,padding:28}}>
-                                <div style={{marginBottom:16}}>
-                                    <label style={{display:'block',fontSize:11,fontWeight:600,color:'#6b7280',textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>📧 Correo Electrónico</label>
+                            <div style={{ background: '#16161f', border: '1px solid #2a2a3a', borderRadius: 24, padding: 28 }}>
+                                <div style={{ marginBottom: 16 }}>
+                                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 6 }}>📧 Correo Electrónico</label>
                                     <input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
                                         onKeyDown={e => e.key === 'Enter' && handleLogin()}
                                         placeholder="tu@correo.com"
-                                        style={{width:'100%',padding:'13px 16px',borderRadius:12,border:'1.5px solid #2a2a3a',background:'#0f0f13',color:'#e2e8f0',fontSize:15,outline:'none'}}
+                                        style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: '1.5px solid #2a2a3a', background: '#0f0f13', color: '#e2e8f0', fontSize: 15, outline: 'none' }}
                                     />
                                 </div>
-                                <div style={{marginBottom:20}}>
-                                    <label style={{display:'block',fontSize:11,fontWeight:600,color:'#6b7280',textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>🔑 Contraseña</label>
+                                <div style={{ marginBottom: 20 }}>
+                                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: .5, marginBottom: 6 }}>🔑 Contraseña</label>
                                     <input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)}
                                         onKeyDown={e => e.key === 'Enter' && handleLogin()}
                                         placeholder="••••••••"
-                                        style={{width:'100%',padding:'13px 16px',borderRadius:12,border:'1.5px solid #2a2a3a',background:'#0f0f13',color:'#e2e8f0',fontSize:15,outline:'none',letterSpacing:2}}
+                                        style={{ width: '100%', padding: '13px 16px', borderRadius: 12, border: '1.5px solid #2a2a3a', background: '#0f0f13', color: '#e2e8f0', fontSize: 15, outline: 'none', letterSpacing: 2 }}
                                     />
                                 </div>
                                 {loginError && (
-                                    <div style={{background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.3)',borderRadius:10,padding:'10px 14px',marginBottom:16}}>
-                                        <p style={{color:'#ef4444',fontSize:13,fontWeight:500}}>⚠️ {loginError}</p>
+                                    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
+                                        <p style={{ color: '#ef4444', fontSize: 13, fontWeight: 500 }}>⚠️ {loginError}</p>
                                     </div>
                                 )}
                                 <button onClick={handleLogin} disabled={loginLoading}
-                                    style={{width:'100%',padding:'14px',borderRadius:14,border:'none',background:'linear-gradient(135deg,#DA0081,#9333ea)',color:'#fff',fontWeight:700,fontSize:16,cursor:'pointer',boxShadow:'0 6px 24px rgba(218,0,129,0.3)',opacity:loginLoading?.7:1,transition:'opacity .2s'}}>
+                                    style={{ width: '100%', padding: '14px', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#DA0081,#9333ea)', color: '#fff', fontWeight: 700, fontSize: 16, cursor: 'pointer', boxShadow: '0 6px 24px rgba(218,0,129,0.3)', opacity: loginLoading ? .7 : 1, transition: 'opacity .2s' }}>
                                     {loginLoading ? 'Verificando...' : 'Ingresar'}
                                 </button>
                             </div>
-                            <p style={{textAlign:'center',color:'#4b5563',fontSize:11,marginTop:16}}>Solicita tus credenciales al administrador</p>
+                            <p style={{ textAlign: 'center', color: '#4b5563', fontSize: 11, marginTop: 16 }}>Solicita tus credenciales al administrador</p>
                         </div>
                     </div>
                 );
@@ -3132,10 +3204,10 @@
             // ── Pantalla de Licencia Vencida / Bloqueada ──────────────────────
             if (licenseStatus === 'checking') {
                 return (
-                    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg,#0f0f13,#1a0a2e)'}}>
-                        <div style={{textAlign:'center',color:'#9ca3af'}}>
-                            <div style={{width:48,height:48,border:'3px solid #DA0081',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 1s linear infinite',margin:'0 auto 16px'}}></div>
-                            <p style={{fontFamily:'Inter,sans-serif',fontSize:14}}>Verificando licencia...</p>
+                    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#0f0f13,#1a0a2e)' }}>
+                        <div style={{ textAlign: 'center', color: '#9ca3af' }}>
+                            <div style={{ width: 48, height: 48, border: '3px solid #DA0081', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
+                            <p style={{ fontFamily: 'Inter,sans-serif', fontSize: 14 }}>Verificando licencia...</p>
                             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
                         </div>
                     </div>
@@ -3146,26 +3218,26 @@
                 const whatsappMsg = encodeURIComponent('Hola, quiero activar mi licencia nuevamente del programa de organización y control de créditos');
                 const whatsappUrl = `https://wa.me/573002397590?text=${whatsappMsg}`;
                 return (
-                    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg,#0f0f13 0%,#1a0a2e 50%,#0f0f13 100%)',padding:24,fontFamily:'Inter,sans-serif'}}>
-                        <div style={{textAlign:'center',maxWidth:420,width:'100%'}}>
-                            <div style={{width:100,height:100,background:'linear-gradient(135deg,rgba(218,0,129,0.15),rgba(147,51,234,0.15))',borderRadius:30,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 28px',border:'2px solid rgba(218,0,129,0.3)'}}>
-                                <span style={{fontSize:48}}>🔒</span>
+                    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg,#0f0f13 0%,#1a0a2e 50%,#0f0f13 100%)', padding: 24, fontFamily: 'Inter,sans-serif' }}>
+                        <div style={{ textAlign: 'center', maxWidth: 420, width: '100%' }}>
+                            <div style={{ width: 100, height: 100, background: 'linear-gradient(135deg,rgba(218,0,129,0.15),rgba(147,51,234,0.15))', borderRadius: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 28px', border: '2px solid rgba(218,0,129,0.3)' }}>
+                                <span style={{ fontSize: 48 }}>🔒</span>
                             </div>
-                            <h1 style={{fontSize:28,fontWeight:800,color:'#f1f5f9',marginBottom:10,lineHeight:1.2}}>
+                            <h1 style={{ fontSize: 28, fontWeight: 800, color: '#f1f5f9', marginBottom: 10, lineHeight: 1.2 }}>
                                 {licenseStatus === 'expired' ? 'Licencia Vencida' : 'Licencia Suspendida'}
                             </h1>
-                            <p style={{color:'#6b7280',fontSize:15,lineHeight:1.6,marginBottom:36}}>
+                            <p style={{ color: '#6b7280', fontSize: 15, lineHeight: 1.6, marginBottom: 36 }}>
                                 {licenseStatus === 'expired'
                                     ? 'Tu periodo de licencia ha finalizado. Renueva ahora para seguir gestionando tus créditos sin interrupciones.'
                                     : 'Tu acceso ha sido suspendido temporalmente. Comunícate con nosotros para reactivar tu licencia.'}
                             </p>
                             <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
-                                style={{display:'flex',alignItems:'center',justifyContent:'center',gap:12,width:'100%',padding:'18px 24px',borderRadius:20,border:'none',background:'linear-gradient(135deg,#25D366,#128C7E)',color:'#fff',fontSize:17,fontWeight:700,textDecoration:'none',cursor:'pointer',boxShadow:'0 8px 32px rgba(37,211,102,0.3)',transition:'transform 0.15s,box-shadow 0.15s'}}
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, width: '100%', padding: '18px 24px', borderRadius: 20, border: 'none', background: 'linear-gradient(135deg,#25D366,#128C7E)', color: '#fff', fontSize: 17, fontWeight: 700, textDecoration: 'none', cursor: 'pointer', boxShadow: '0 8px 32px rgba(37,211,102,0.3)', transition: 'transform 0.15s,box-shadow 0.15s' }}
                             >
-                                <svg width="26" height="26" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                                <svg width="26" height="26" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" /></svg>
                                 Contáctanos aquí para activar tu licencia
                             </a>
-                            <p style={{color:'#4b5563',fontSize:12,marginTop:20}}>¿Necesitas ayuda? Escríbenos directamente por WhatsApp</p>
+                            <p style={{ color: '#4b5563', fontSize: 12, marginTop: 20 }}>¿Necesitas ayuda? Escríbenos directamente por WhatsApp</p>
                         </div>
                     </div>
                 );
