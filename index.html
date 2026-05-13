@@ -898,7 +898,7 @@
             // Calcular saldo acumulado por pago (running balance)
             const paymentsWithBalance = React.useMemo(() => {
                 if (!loan) return [];
-                const totalLoan = loan.amount * (1 + (loan.interestRate || GLOBAL_INTEREST_RATE));
+                const totalLoan = loan.totalPayable || loan.amount * (1 + (loan.interestRate || 20) / 100);
                 let saldoActual = totalLoan;
                 return payments.map(p => {
                     saldoActual = Math.max(saldoActual - p.amount, 0);
@@ -996,7 +996,7 @@
             };
 
             if (!isOpen || !loan) return null;
-            const totalLoan = loan.amount * (1 + (loan.interestRate || GLOBAL_INTEREST_RATE));
+            const totalLoan = loan.totalPayable || loan.amount * (1 + (loan.interestRate || 20) / 100);
 
             return (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}>
